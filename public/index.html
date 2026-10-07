@@ -1,0 +1,467 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Film Room</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #6b6b6b; --line: #e2e2e2;
+    --card: #f5f5f3; --accent: #185fa5; --accent-bg: #e6f1fb; --danger: #a32d2d; --danger-bg: #fcebeb;
+    --k-watch: #ef9f27; --k-good: #2e9e4f; --k-bad: #e24b4a; --k-ask: #378add;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151515; --fg: #f1f1f1; --muted: #a0a0a0; --line: #333333;
+      --card: #202020; --accent: #85b7eb; --accent-bg: #0c447c; --danger: #f09595; --danger-bg: #501313;
+      --k-watch: #ef9f27; --k-good: #3fb950; --k-bad: #f0605f; --k-ask: #5aa5ec;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  /* Column width = the size you chose, but never wider than a video that is 78% of the window's height. */
+  html { --col: 1100px; --side: 0px; }
+  html[data-size="standard"] { --col: 820px; }
+  html[data-size="large"] { --col: 1100px; }
+  html[data-size="full"] { --col: 100%; }
+  main { width: min(100%, calc(var(--col) + var(--side)), calc(78vh * 1.7778 + 32px + var(--side))); margin: 0 auto; padding: 16px; }
+  h1 { font-size: 20px; font-weight: 600; margin: 0 0 2px; overflow-wrap: anywhere; }
+  .sub { color: var(--muted); font-size: 14px; margin: 0 0 12px; }
+  [hidden] { display: none !important; }
+
+  .ctl-row { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 8px; }
+  .size-ctl, .notes-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .size-ctl button, .notes-ctl button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .size-ctl button[aria-pressed="true"], .notes-ctl button[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  @media (max-width: 860px) { .ctl-row { display: none; } }
+
+  .player-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #000; border-radius: 8px; overflow: hidden; }
+  @supports not (aspect-ratio: 16 / 9) { .player-wrap { height: 0; padding-top: 56.25%; } }
+  .player-wrap iframe, .player-wrap #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
+
+  #strip { margin-top: 12px; min-height: 76px; padding: 12px 14px; background: var(--card); border-left: 4px solid var(--line); border-radius: 0 8px 8px 0; }
+  #strip.live { border-left-color: var(--accent); }
+  .strip-item { display: flex; gap: 12px; align-items: baseline; font-size: 20px; line-height: 1.35; }
+  .strip-item + .strip-item { margin-top: 8px; }
+  .strip-time { font: 14px ui-monospace, Menlo, Consolas, monospace; color: var(--accent); flex: none; }
+  .strip-text { overflow-wrap: anywhere; }
+  .strip-idle { color: var(--muted); font-size: 16px; }
+  .strip-emoji { font-size: 1.5em; line-height: 1; flex: none; }
+  .strip-item.emoji-only .strip-emoji { font-size: 2.2em; }
+  .strip-item[data-k] { padding-left: 10px; border-left: 4px solid var(--line); }
+  .strip-item[data-k="watch"] { border-left-color: var(--k-watch); }
+  .strip-item[data-k="good"] { border-left-color: var(--k-good); }
+  .strip-item[data-k="bad"] { border-left-color: var(--k-bad); }
+  .strip-item[data-k="ask"] { border-left-color: var(--k-ask); }
+
+  .controls { display: flex; gap: 8px; margin: 12px 0; }
+  .controls button { flex: 1; min-height: 44px; font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+  .controls button:hover { border-color: var(--accent); }
+
+  ol#list { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--line); position: relative; }
+  ol#list li { margin: 0; }
+  ol#list button { display: flex; gap: 12px; align-items: baseline; width: 100%; min-height: 44px; padding: 10px 8px; text-align: left; font: inherit; color: var(--fg); background: transparent; border: 0; border-bottom: 1px solid var(--line); cursor: pointer; }
+  ol#list button:hover { background: var(--card); }
+  ol#list button.on { background: var(--accent-bg); }
+  .li-time { font: 14px ui-monospace, Menlo, Consolas, monospace; color: var(--accent); flex: none; min-width: 44px; }
+  .li-emoji { flex: none; font-size: 1.3em; line-height: 1.1; }
+  ol#list button { border-left: 4px solid transparent; }
+  ol#list button[data-k="watch"] { border-left-color: var(--k-watch); }
+  ol#list button[data-k="good"] { border-left-color: var(--k-good); }
+  ol#list button[data-k="bad"] { border-left-color: var(--k-bad); }
+  ol#list button[data-k="ask"] { border-left-color: var(--k-ask); }
+  .li-text { overflow-wrap: anywhere; }
+
+  .ext { margin: 16px 0 0; font-size: 14px; color: var(--muted); }
+
+  /* Notes on the right (wide windows only; narrower windows always stack the notes below). The notes cell
+     stretches to the video's height and the column fills it, so a long list scrolls inside its own box. */
+  @media (min-width: 861px) {
+    html[data-notes="right"] { --side: 356px; }
+    html[data-notes="right"] .stage { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: 16px; align-items: stretch; }
+    html[data-notes="right"] .notes-cell { position: relative; min-width: 0; }
+    html[data-notes="right"] .notes-col { position: absolute; top: 0; right: 0; bottom: 0; left: 0; display: flex; flex-direction: column; min-height: 0; }
+    html[data-notes="right"] #strip { flex: none; margin-top: 0; max-height: 45%; overflow-y: auto; }
+    html[data-notes="right"] .controls { flex: none; margin: 10px 0; }
+    html[data-notes="right"] ol#list { flex: 1 1 auto; min-height: 0; overflow-y: auto; }
+  }
+  .ext a { color: var(--accent); }
+
+  #error { margin: 12px 0; padding: 12px 14px; background: var(--danger-bg); color: var(--danger); border-radius: 8px; font-size: 15px; }
+  #error a { color: inherit; font-weight: 600; }
+</style>
+</head>
+<body>
+<main>
+  <h1 id="title">Film Room</h1>
+  <p class="sub" id="sub"></p>
+
+  <div id="error" hidden></div>
+
+  <section id="viewer" hidden>
+    <div class="ctl-row">
+      <div class="size-ctl" role="group" aria-label="Video size">
+        <span>Size</span>
+        <button type="button" data-size="standard" aria-pressed="false">Standard</button>
+        <button type="button" data-size="large" aria-pressed="false">Large</button>
+        <button type="button" data-size="full" aria-pressed="false">Full</button>
+      </div>
+      <div class="notes-ctl" role="group" aria-label="Notes position">
+        <span>Notes</span>
+        <button type="button" data-notes="below" aria-pressed="false">Below</button>
+        <button type="button" data-notes="right" aria-pressed="false">Right</button>
+      </div>
+    </div>
+    <div class="stage">
+      <div class="player-wrap"><div id="player"></div></div>
+      <div class="notes-cell">
+        <div class="notes-col">
+          <div id="strip" aria-live="polite"></div>
+          <div class="controls">
+            <button type="button" id="prev">Previous note</button>
+            <button type="button" id="next">Next note</button>
+          </div>
+          <ol id="list"></ol>
+        </div>
+      </div>
+    </div>
+    <p class="ext" id="ext" hidden>Have the Film Room extension on a laptop? <a id="extLink" href="#">Watch on YouTube with the notes on the video</a>.</p>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  var YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+  var PAYLOAD_RE = /^[zj][A-Za-z0-9_-]+$/;
+  var SHORT_RE = /^s[A-Za-z0-9_-]{10}$/;
+  var MAX_HASH_CHARS = 60000;
+  var MAX_BYTES = 262144;
+  var MAX_NOTES = 300;
+  var MAX_TEXT = 300;
+  // The default emoji set (same as the extension) and the meaning colour for each
+  var EMOJI_KIND = {
+    '\u{1F440}': 'watch', '\u{1F3AF}': 'watch', '\u{1F4A1}': 'watch',
+    '\u2705': 'good', '\u2B50': 'good',
+    '\u274C': 'bad', '\u26A0\uFE0F': 'bad',
+    '\u{1F914}': 'ask'
+  };
+  function cleanEmoji(c) { return (typeof c === 'string' && Object.prototype.hasOwnProperty.call(EMOJI_KIND, c)) ? c : ''; }
+
+  // ---------- share-link codec (kept identical to the extension's) ----------
+  function fromB64Url(str) {
+    str = str.replace(/-/g, '+').replace(/_/g, '/');
+    while (str.length % 4) str += '=';
+    var bin = atob(str);
+    var out = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+
+  async function readAll(readable, cap) {
+    var reader = readable.getReader();
+    var chunks = [];
+    var total = 0;
+    for (;;) {
+      var r = await reader.read();
+      if (r.done) break;
+      total += r.value.length;
+      if (total > cap) { reader.cancel(); throw new Error('too big'); }
+      chunks.push(r.value);
+    }
+    var out = new Uint8Array(total);
+    var off = 0;
+    chunks.forEach(function (c) { out.set(c, off); off += c.length; });
+    return out;
+  }
+
+  async function inflate(bytes) {
+    var ds = new DecompressionStream('deflate-raw');
+    var w = ds.writable.getWriter();
+    w.write(bytes).catch(function () {});
+    w.close().catch(function () {});
+    return readAll(ds.readable, MAX_BYTES);
+  }
+
+  // The link is untrusted: anyone can craft one. Validate everything, render only as text.
+  function sanitize(obj) {
+    if (!obj || obj.v !== 1 || typeof obj.id !== 'string' || !YT_ID_RE.test(obj.id) || !Array.isArray(obj.n)) return null;
+    var notes = [];
+    obj.n.slice(0, MAX_NOTES).forEach(function (row) {
+      if (!Array.isArray(row) || row.length < 3) return;
+      var s = Number(row[0]), e = Number(row[1]), t = row[2];
+      if (!isFinite(s) || !isFinite(e) || typeof t !== 'string') return;
+      if (s < 0 || s > 1000000 || e <= s || e - s > 3600) return;
+      t = t.trim().slice(0, MAX_TEXT);
+      var em = row.length > 3 ? cleanEmoji(row[3]) : '';
+      if (em && t === em) t = ''; // emoji-only note: the sender also puts the emoji in the text slot
+      if (!t && !em) return;
+      notes.push({ start: s, end: e, text: t, emoji: em });
+    });
+    if (!notes.length) return null;
+    notes.sort(function (a, b) { return a.start - b.start; });
+    var title = typeof obj.t === 'string' ? obj.t.trim().slice(0, 120) : '';
+    return { id: obj.id, title: title, notes: notes };
+  }
+
+  async function decode(payload) {
+    if (typeof payload !== 'string' || payload.length > MAX_HASH_CHARS || !PAYLOAD_RE.test(payload)) return null;
+    var bytes = fromB64Url(payload.slice(1));
+    if (payload.charAt(0) === 'z') bytes = await inflate(bytes);
+    if (bytes.length > MAX_BYTES) return null;
+    return sanitize(JSON.parse(new TextDecoder().decode(bytes)));
+  }
+
+  // ---------- page ----------
+  var $ = function (id) { return document.getElementById(id); };
+  var data = null, hash = '', player = null, timer = null, lastKey = null;
+
+  function fmt(s) {
+    s = Math.max(0, Math.floor(s));
+    var h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = String(s % 60).padStart(2, '0');
+    return h ? h + ':' + String(m).padStart(2, '0') + ':' + x : m + ':' + x;
+  }
+
+  function showError(message, videoId) {
+    var box = $('error');
+    box.textContent = message;
+    if (videoId && YT_ID_RE.test(videoId)) {
+      box.appendChild(document.createTextNode(' '));
+      var a = document.createElement('a');
+      a.href = 'https://www.youtube.com/watch?v=' + videoId;
+      a.textContent = 'Open it on YouTube';
+      a.rel = 'noopener';
+      box.appendChild(a);
+      box.appendChild(document.createTextNode('.'));
+    }
+    box.hidden = false;
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  function buildList() {
+    var list = $('list');
+    list.textContent = '';
+    data.notes.forEach(function (n, i) {
+      var li = document.createElement('li');
+      var b = el('button');
+      b.type = 'button';
+      b.id = 'row' + i;
+      if (n.emoji) b.setAttribute('data-k', EMOJI_KIND[n.emoji]);
+      b.appendChild(el('span', 'li-time', fmt(n.start)));
+      if (n.emoji) b.appendChild(el('span', 'li-emoji', n.emoji));
+      if (n.text) b.appendChild(el('span', 'li-text', n.text));
+      b.addEventListener('click', function () { jumpTo(n.start); });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+  }
+
+  function jumpTo(seconds) {
+    if (!player) return;
+    try {
+      player.seekTo(seconds, true);
+      player.playVideo();
+    } catch (e) {}
+    update();
+  }
+
+  function update() {
+    if (!player || !data) return;
+    var t = 0;
+    try { t = player.getCurrentTime() || 0; } catch (e) { return; }
+
+    var active = [];
+    data.notes.forEach(function (n, i) { if (t >= n.start && t < n.end) active.push(i); });
+
+    var key = active.join(',');
+    if (key === '') {
+      var next = null;
+      for (var i = 0; i < data.notes.length; i++) { if (data.notes[i].start > t) { next = data.notes[i]; break; } }
+      key = next ? 'next:' + next.start : 'done';
+    }
+    if (key !== lastKey) {
+      lastKey = key;
+      var strip = $('strip');
+      strip.textContent = '';
+      if (active.length) {
+        strip.className = 'live';
+        strip.id = 'strip';
+        active.forEach(function (idx) {
+          var nn = data.notes[idx];
+          var item = el('div', 'strip-item' + (nn.emoji && !nn.text ? ' emoji-only' : ''));
+          if (nn.emoji) item.setAttribute('data-k', EMOJI_KIND[nn.emoji]);
+          item.appendChild(el('span', 'strip-time', fmt(nn.start)));
+          if (nn.emoji) item.appendChild(el('span', 'strip-emoji', nn.emoji));
+          if (nn.text) item.appendChild(el('span', 'strip-text', nn.text));
+          strip.appendChild(item);
+        });
+      } else {
+        strip.className = '';
+        var msg = key === 'done' ? 'No more notes.' : (t < data.notes[0].start ? 'First note at ' : 'Next note at ') + fmt(key.slice(5) * 1);
+        strip.appendChild(el('div', 'strip-idle', msg));
+      }
+      data.notes.forEach(function (n, j) {
+        var row = $('row' + j);
+        if (row) row.className = active.indexOf(j) >= 0 ? 'on' : '';
+      });
+      var listEl = $('list'), cur = active.length ? $('row' + active[0]) : null;
+      if (cur && listEl.scrollHeight > listEl.clientHeight) { // only when the list scrolls (the side layout)
+        var li = cur.parentNode, top = li.offsetTop, bottom = top + li.offsetHeight;
+        if (top < listEl.scrollTop) listEl.scrollTop = top;
+        else if (bottom > listEl.scrollTop + listEl.clientHeight) listEl.scrollTop = bottom - listEl.clientHeight;
+      }
+    }
+  }
+
+  function prevNote() {
+    if (!player) return;
+    var t = player.getCurrentTime() || 0, target = null;
+    data.notes.forEach(function (n) { if (n.start < t - 1.5) target = n.start; });
+    jumpTo(target == null ? data.notes[0].start : target);
+  }
+
+  function nextNote() {
+    if (!player) return;
+    var t = player.getCurrentTime() || 0;
+    for (var i = 0; i < data.notes.length; i++) {
+      if (data.notes[i].start > t + 0.25) { jumpTo(data.notes[i].start); return; }
+    }
+  }
+
+  function onReady() {
+    if (timer) clearInterval(timer);
+    timer = setInterval(update, 200);
+    update();
+  }
+
+  function onError() {
+    showError('This video can\u2019t be played here.', data && data.id);
+  }
+
+  function createPlayer() {
+    player = new YT.Player('player', {
+      videoId: data.id,
+      width: '100%',
+      height: '100%',
+      playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+      events: { onReady: onReady, onError: onError, onStateChange: update }
+    });
+  }
+
+  function startPlayer() {
+    if (window.YT && window.YT.Player) { createPlayer(); return; }
+    window.onYouTubeIframeAPIReady = createPlayer;
+    var s = document.createElement('script');
+    s.src = 'https://www.youtube.com/iframe_api';
+    s.onerror = function () { showError('Couldn\u2019t load the YouTube player. Check your connection and reload.', data && data.id); };
+    document.head.appendChild(s);
+  }
+
+  function show() {
+    $('title').textContent = data.title || 'Shared notes';
+    document.title = (data.title ? data.title + ' \u2013 ' : '') + 'Film Room';
+    $('sub').textContent = data.notes.length + (data.notes.length === 1 ? ' note' : ' notes') + ' shared with you';
+    $('viewer').hidden = false;
+    buildList();
+    $('prev').addEventListener('click', prevNote);
+    $('next').addEventListener('click', nextNote);
+    $('extLink').href = 'https://www.youtube.com/watch?v=' + data.id + '#fr=' + hash;
+    $('ext').hidden = false;
+    startPlayer();
+  }
+
+  // ---------- video size (remembered on this device; Large unless you pick another) ----------
+  var SIZES = ['standard', 'large', 'full'], SIZE_KEY = 'filmroom_viewer_size';
+  function getSize() {
+    var v = null;
+    try { v = localStorage.getItem(SIZE_KEY); } catch (e) { /* storage blocked: use the default */ }
+    return SIZES.indexOf(v) >= 0 ? v : 'large';
+  }
+  function setSize(size, remember) {
+    if (SIZES.indexOf(size) < 0) size = 'large';
+    document.documentElement.setAttribute('data-size', size);
+    var btns = document.querySelectorAll('.size-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-size') === size));
+    if (remember) { try { localStorage.setItem(SIZE_KEY, size); } catch (e) { /* ignore */ } }
+  }
+  (function wireSize() {
+    var btns = document.querySelectorAll('.size-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].addEventListener('click', function () { setSize(this.getAttribute('data-size'), true); });
+  })();
+
+  // ---------- where the notes go: below the video, or to its right ----------
+  // Until you pick, wide windows (1100px+) put the notes on the right and everything narrower stacks them below.
+  var NOTES_KEY = 'filmroom_viewer_notes', notesPref = 'auto', wideMQ = null;
+  function getNotesPref() {
+    var v = null;
+    try { v = localStorage.getItem(NOTES_KEY); } catch (e) { /* storage blocked: use the default */ }
+    return v === 'below' || v === 'right' ? v : 'auto';
+  }
+  function effectiveNotes() {
+    if (notesPref !== 'auto') return notesPref;
+    return wideMQ && wideMQ.matches ? 'right' : 'below';
+  }
+  function setNotes(pref, remember) {
+    notesPref = pref === 'below' || pref === 'right' ? pref : 'auto';
+    var eff = effectiveNotes();
+    document.documentElement.setAttribute('data-notes', eff);
+    var btns = document.querySelectorAll('.notes-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String(btns[i].getAttribute('data-notes') === eff));
+    if (remember) { try { localStorage.setItem(NOTES_KEY, notesPref); } catch (e) { /* ignore */ } }
+  }
+  (function wireNotes() {
+    try { if (typeof window.matchMedia === 'function') wideMQ = window.matchMedia('(min-width: 1100px)'); } catch (e) { wideMQ = null; }
+    var btns = document.querySelectorAll('.notes-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].addEventListener('click', function () { setNotes(this.getAttribute('data-notes'), true); });
+    var onWide = function () { if (notesPref === 'auto') setNotes('auto', false); }; // resizing the window re-decides, until you pick
+    if (wideMQ) { if (wideMQ.addEventListener) wideMQ.addEventListener('change', onWide); else if (wideMQ.addListener) wideMQ.addListener(onWide); }
+  })();
+
+  function init() {
+    setSize(getSize(), false);
+    setNotes(getNotesPref(), false);
+    var raw = location.hash.replace(/^#(fr=)?/, '');
+    if (!raw) {
+      $('sub').textContent = 'This page opens links shared from Film Room.';
+      showError('There\u2019s no shared link here. Ask for a new one.');
+      return;
+    }
+    // A short link (#s + 10 characters) holds the notes on the server; a long link carries them itself.
+    var resolve = SHORT_RE.test(raw) ? fetchShort(raw.slice(1)) : Promise.resolve(raw);
+    resolve.then(function (payload) {
+      hash = payload;
+      return decode(payload);
+    }).then(function (d) {
+      if (!d) { showError('That link couldn\u2019t be read. Ask for a new one.'); return; }
+      data = d;
+      show();
+    }).catch(function (err) {
+      if (err && err.expired) showError('This link has expired or doesn\u2019t exist. Ask for a new one.');
+      else if (err && err.network) showError('Couldn\u2019t load the notes. Check your connection and refresh.');
+      else showError('That link couldn\u2019t be read. Ask for a new one.');
+    });
+  }
+
+  function fetchShort(id) {
+    return fetch('/api/share/' + id, { cache: 'no-store' }).then(function (r) {
+      if (r.status === 404) { var e = new Error('gone'); e.expired = true; throw e; }
+      if (!r.ok) { var e2 = new Error('http ' + r.status); e2.network = true; throw e2; }
+      return r.text();
+    }, function () { var e3 = new Error('offline'); e3.network = true; throw e3; });
+  }
+
+  window.__fr = { decode: decode, sanitize: sanitize, init: init, getSize: getSize, setSize: setSize, getNotesPref: getNotesPref, setNotes: setNotes };
+  window.addEventListener('hashchange', function () { location.reload(); });
+  init();
+})();
+</script>
+</body>
+</html>
