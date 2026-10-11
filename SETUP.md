@@ -1,7 +1,9 @@
 # Film Room viewer + short links: setup
 
 ## What's in this folder
-- `public/index.html` : the viewer page (now also opens short links)
+- `public/index.html` : the viewer page (opens short links; shows a "watch it here" tip)
+- `public/start/index.html` : the friend-test page: download, install steps, handbook, feedback questions (`/start/`)
+- `public/download/film-room-overlay.zip` : the extension zip that page offers. **Replace it with each new extension release** (keep the same file name) and update the version label on the button in `start/index.html`
 - `netlify/functions/share.mjs` : the short-link service (`/api/share`)
 - `netlify/functions/cleanup.mjs` : daily cleanup of links nobody opened for 90 days
 - `netlify/lib/share-core.mjs` : the service logic
@@ -21,3 +23,6 @@
 
 ## From now on
 To update the viewer or the service, upload the changed files to the GitHub repository. Netlify redeploys on its own.
+
+## Sending the extension to a friend
+Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the handbook and five feedback questions.

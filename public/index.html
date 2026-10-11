@@ -88,6 +88,12 @@
   }
   .ext a { color: var(--accent); }
 
+  /* "Notes play here": people without the extension often tap through to YouTube and lose the notes */
+  .hint { display: flex; gap: 10px; align-items: flex-start; margin: 0 0 12px; padding: 10px 8px 10px 14px; background: var(--accent-bg); border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0; font-size: 14px; line-height: 1.45; }
+  .hint p { margin: 0; flex: 1; }
+  .hint button { flex: none; width: 32px; height: 32px; margin: -4px 0; font: inherit; font-size: 20px; line-height: 1; color: var(--muted); background: transparent; border: 0; border-radius: 6px; cursor: pointer; }
+  .hint button:hover { color: var(--fg); background: rgba(127, 127, 127, 0.18); }
+
   #error { margin: 12px 0; padding: 12px 14px; background: var(--danger-bg); color: var(--danger); border-radius: 8px; font-size: 15px; }
   #error a { color: inherit; font-weight: 600; }
 </style>
@@ -100,6 +106,10 @@
   <div id="error" hidden></div>
 
   <section id="viewer" hidden>
+    <div class="hint" id="hint" role="note" hidden>
+      <p><strong>Watch it here to see the notes.</strong> They play on this page, next to the video. If you open the video on YouTube itself, you get the plain video without them.</p>
+      <button type="button" id="hintX" aria-label="Dismiss this tip" title="Dismiss">&times;</button>
+    </div>
     <div class="ctl-row">
       <div class="size-ctl" role="group" aria-label="Video size">
         <span>Size</span>
@@ -375,7 +385,17 @@
     $('next').addEventListener('click', nextNote);
     $('extLink').href = 'https://www.youtube.com/watch?v=' + data.id + '#fr=' + hash;
     $('ext').hidden = false;
+    $('hint').hidden = hintDismissed();
+    $('hintX').addEventListener('click', function () {
+      $('hint').hidden = true;
+      try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* storage blocked: it just shows again next time */ }
+    });
     startPlayer();
+  }
+
+  var HINT_KEY = 'filmroom_viewer_hint';
+  function hintDismissed() {
+    try { return localStorage.getItem(HINT_KEY) === '1'; } catch (e) { return false; }
   }
 
   // ---------- video size (remembered on this device; Large unless you pick another) ----------

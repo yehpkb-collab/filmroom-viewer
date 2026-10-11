@@ -18,6 +18,7 @@ export const RATE_LIMIT_PER_HOUR = 40;
 const PAYLOAD_RE = /^[zj][A-Za-z0-9_-]+$/;
 const ID_RE = new RegExp('^[A-Za-z0-9_-]{' + ID_LEN + '}$');
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;
+const AUTHOR_RE = /^[A-Za-z0-9_-]{6,24}$/;
 const MAX_PAYLOAD_CHARS = 60000; // same ceiling the extension and viewer use for a link
 const MAX_BYTES = 262144;
 const MAX_NOTES = 300;
@@ -54,7 +55,8 @@ export function validPayload(payload) {
     return false;
   }
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false;
-  if (Object.keys(obj).some((k) => k !== 'v' && k !== 'id' && k !== 't' && k !== 'n')) return false;
+  if (Object.keys(obj).some((k) => k !== 'v' && k !== 'id' && k !== 't' && k !== 'n' && k !== 'a')) return false;
+  if (obj.a !== undefined && (typeof obj.a !== 'string' || !AUTHOR_RE.test(obj.a))) return false;
   if (obj.v !== 1 || typeof obj.id !== 'string' || !YT_ID_RE.test(obj.id)) return false;
   if (obj.t !== undefined && (typeof obj.t !== 'string' || obj.t.length > 300)) return false;
   if (!Array.isArray(obj.n) || obj.n.length < 1 || obj.n.length > MAX_NOTES) return false;
