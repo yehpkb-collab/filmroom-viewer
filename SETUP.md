@@ -2,7 +2,8 @@
 
 ## What's in this folder
 - `public/index.html` : the viewer page (opens short links; shows a "watch it here" tip)
-- `public/start/index.html` : the friend-test page: download, install steps, handbook, feedback questions (`/start/`)
+- `public/start/index.html` : the friend-test page: download, three install steps, first note, three feedback questions (`/start/`)
+- `public/start/guide/index.html` : the full guide: keys, emoji, sharing, troubleshooting; printable (`/start/guide/`)
 - `public/download/film-room-overlay.zip` : the extension zip that page offers. **Replace it with each new extension release** (keep the same file name) and update the version label on the button in `start/index.html`
 - `netlify/functions/share.mjs` : the short-link service (`/api/share`)
 - `netlify/functions/cleanup.mjs` : daily cleanup of links nobody opened for 90 days
@@ -25,4 +26,7 @@
 To update the viewer or the service, upload the changed files to the GitHub repository. Netlify redeploys on its own.
 
 ## Sending the extension to a friend
-Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the handbook and five feedback questions.
+Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the first-note keys and three feedback questions, with a link to the full guide.
+
+## Versions
+The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.4 (simplified `/start/` page, new `/start/guide/`). The extension zip is versioned separately (`film-room-overlay-vX.zip`).

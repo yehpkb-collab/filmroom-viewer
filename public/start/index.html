@@ -14,7 +14,7 @@
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #121317; --fg: #f1f2f4; --muted: #a2a8b3; --line: #2b2e36; --card: #1b1d23;
-      --bar: #d8f34a;
+      --bar: #d8f34a; --link: #7db8f5;
       --watch: #f2a93b; --good: #3fb97a; --bad: #ef5b5b; --ask: #5aa9f0;
     }
   }
@@ -28,6 +28,7 @@
   .lead { font-size: 18px; color: var(--muted); margin-bottom: 18px; }
   .muted { color: var(--muted); }
   .small { font-size: 14px; }
+  a:not(.btn) { color: var(--link, #1a6fd1); text-underline-offset: 2px; }
   .note { display: flex; gap: 10px; margin: 0 0 18px; padding: 10px 14px; background: var(--card); border-left: 4px solid var(--bar); border-radius: 0 10px 10px 0; font-size: 15px; }
   .note p { margin: 0; }
   .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; font: inherit; font-weight: 600; color: var(--ink); background: var(--accent); border: 0; border-radius: 12px; text-decoration: none; cursor: pointer; }
@@ -78,99 +79,48 @@
 <body>
 <main>
   <h1>Film Room</h1>
-  <p class="lead">Put timed notes and emoji right on a YouTube video, then send a link so someone else sees them too. Built for coaching and scouting. Setup takes about two minutes.</p>
-  <div class="note"><p><strong>You need a laptop or desktop</strong> with the Brave or Chrome browser (Windows, Mac or Linux). It does not run on phones or tablets. This is an early test version, so tell me about anything that breaks or confuses you.</p></div>
-
-  <div class="noprint">
-  <h2 id="install">Install it</h2>
-  <div class="row noprint">
+  <p class="lead">Put timed notes on a YouTube video, then send a link so someone else sees them too. Setup takes about two minutes.</p>
+  <div class="row">
     <a class="btn" id="dl" href="/download/film-room-overlay.zip" download>Download Film Room <small>v0.6a &middot; 33 KB</small></a>
-    <button type="button" class="btn ghost" onclick="window.print()">Print this guide</button>
   </div>
+  <p class="small muted">For a laptop or desktop with Chrome or Brave. Tested on Windows. Mac and Linux should work but are untested. It does not run on phones or tablets.</p>
+
   <ol class="steps">
     <li>
       <h3>Unzip it</h3>
-      <p>Open the downloaded file and extract it. On Windows, right-click it and choose <strong>Extract All</strong>. On a Mac, double-click it. You get a folder called <strong>film-room-overlay</strong>.</p>
-      <p>Move that folder somewhere it can stay, like Documents. Your browser runs Film Room from that folder, so don&rsquo;t delete it.</p>
+      <p>Windows: right-click the downloaded file and choose <strong>Extract All</strong>. Mac: double-click it.</p>
+      <p>Move the <strong>film-room-overlay</strong> folder somewhere it can stay, like Documents. Your browser runs Film Room from that folder, so don&rsquo;t delete it.</p>
     </li>
     <li>
-      <h3>Open your browser&rsquo;s extensions page</h3>
-      <p>Open a new tab, paste this into the address bar, and press Enter:</p>
-      <div class="cmd"><code id="c1">brave://extensions</code><button type="button" class="btn ghost noprint" data-copy="c1">Copy</button></div>
+      <h3>Open your extensions page</h3>
+      <p>Paste this into a new tab&rsquo;s address bar and press Enter:</p>
+      <div class="cmd"><code id="c1">brave://extensions</code><button type="button" class="btn ghost" data-copy="c1">Copy</button></div>
       <p class="small muted">On Chrome, use <code>chrome://extensions</code> instead.</p>
-      <p>Then turn on <strong>Developer mode</strong> (the switch at the top right of that page).</p>
+      <p>Turn on <strong>Developer mode</strong> (switch at the top right).</p>
     </li>
     <li>
       <h3>Load it</h3>
-      <p>Click <strong>Load unpacked</strong>, pick the <strong>film-room-overlay</strong> folder (the one with a file named <code>manifest.json</code> inside), and confirm.</p>
+      <p>Click <strong>Load unpacked</strong> and pick the <strong>film-room-overlay</strong> folder (the one with <code>manifest.json</code> inside).</p>
     </li>
   </ol>
-  <div class="note"><p><strong>Check that it worked:</strong> open any YouTube video (reload the tab if it was already open). A small &ldquo;Film Room&rdquo; tag appears at the top right of the video. Chrome may show a &ldquo;disable developer mode extensions&rdquo; message when it starts. That is normal for extensions installed this way, so you can close it.</p></div>
 
-  </div>
-
-  <h2 id="use">Make notes</h2>
-  <p>With a YouTube video open, use these keys (they don&rsquo;t work while you&rsquo;re typing in a text box). <span class="muted">On a Mac, <kbd>Alt</kbd> is the <kbd>Option</kbd> key.</span></p>
+  <h2 id="first">Make your first note</h2>
+  <p>Open any YouTube video (reload the tab if it was already open). A small &ldquo;Film Room&rdquo; tag appears at the top right of the video. Then:</p>
   <table>
-    <tr><td><kbd>Alt</kbd> + <kbd>N</kbd></td><td><strong>Add a note</strong> at this moment. Type it, pick an emoji if you like, press Enter. Notes start about 2 seconds before you pressed, so the viewer sees it coming.</td></tr>
-    <tr><td><kbd>Alt</kbd> + <kbd>B</kbd></td><td><strong>Quick bookmark</strong> with one keypress. For the next 8 seconds, press <kbd>1</kbd> to <kbd>8</kbd> to change its emoji.</td></tr>
-    <tr><td><kbd>Alt</kbd> + <kbd>E</kbd></td><td><strong>End the note</strong> that is on screen right now.</td></tr>
-    <tr><td><kbd>Alt</kbd> + <kbd>L</kbd></td><td><strong>Notes list</strong> on the video. Click a row to jump there; the pencil edits it.</td></tr>
-    <tr><td><kbd>Alt</kbd> + <kbd>P</kbd></td><td><strong>Notes panel</strong> in YouTube&rsquo;s right-hand column.</td></tr>
-    <tr><td><kbd>Alt</kbd> + <kbd>,</kbd> &nbsp;<kbd>Alt</kbd> + <kbd>.</kbd></td><td><strong>Previous / next note.</strong></td></tr>
+    <tr><td><kbd>Alt</kbd> + <kbd>N</kbd></td><td><strong>Add a note</strong> at this moment. Type it, pick an emoji if you like, press Enter.</td></tr>
+    <tr><td><kbd>Alt</kbd> + <kbd>B</kbd></td><td><strong>Quick bookmark</strong> with one keypress. Then press <kbd>1</kbd> to <kbd>8</kbd> within 8 seconds to change its emoji.</td></tr>
+    <tr><td><kbd>Alt</kbd> + <kbd>S</kbd></td><td><strong>Share.</strong> Copies a link to your notes. Paste it into a text or email.</td></tr>
   </table>
-  <h3>What the emoji mean</h3>
-  <ul class="emoji">
-    <li class="k-watch"><span class="tile">&#x1F440;</span> Watch this</li>
-    <li class="k-watch"><span class="tile">&#x1F3AF;</span> Target or placement</li>
-    <li class="k-watch"><span class="tile">&#x1F4A1;</span> Tip or idea</li>
-    <li class="k-good"><span class="tile">&#x2705;</span> Good execution</li>
-    <li class="k-good"><span class="tile">&#x2B50;</span> Great, copy this</li>
-    <li class="k-bad"><span class="tile">&#x274C;</span> Poor execution</li>
-    <li class="k-bad"><span class="tile">&#x26A0;&#xFE0F;</span> Risky choice</li>
-    <li class="k-ask"><span class="tile">&#x1F914;</span> Why? Discuss this</li>
-  </ul>
-  <h3>On the video</h3>
-  <ul class="tips">
-    <li>Drag a note to move it. Drag its bottom-right corner to reshape it. Double-click it to put it back.</li>
-    <li>The thin bar along the bottom of a note shows how much time it has left on screen.</li>
-    <li>Everything you write stays in your own browser, for that video. Nothing is uploaded until you share.</li>
-  </ul>
-  <h3>A good way to work</h3>
-  <ul class="tips">
-    <li>Watch the video once with <kbd>Alt</kbd> + <kbd>B</kbd>, dropping bookmarks. Go back afterwards and add words where it matters.</li>
-    <li>Keep notes to a line. One idea per note.</li>
-  </ul>
-
-  <h2 id="share" class="pb">Share your notes</h2>
-  <p>Press <kbd>Alt</kbd> + <kbd>S</kbd> (or <strong>Copy link</strong> in the notes list). Film Room copies a short link. Paste it into a text or email.</p>
-  <h3>What the other person sees</h3>
-  <ul class="tips">
-    <li><strong>They have Film Room:</strong> the link opens the video on YouTube with your notes drawn on top of it.</li>
-    <li><strong>They don&rsquo;t:</strong> it opens a simple page with the video and your notes beside it. They should watch it on that page. If they tap through to YouTube, they get the plain video without the notes.</li>
-  </ul>
-  <h3>Good to know</h3>
-  <ul class="tips">
-    <li>Anyone with the link can read the notes. Don&rsquo;t put anything private in notes you share.</li>
-    <li>Sharing stores only the video, its title, your notes and a random ID that isn&rsquo;t tied to you. No account, no email.</li>
-    <li>A link stops working after 90 days without anyone opening it. Add more notes, and sharing again makes a new link.</li>
-    <li>If you open your own link, Film Room tells you so and doesn&rsquo;t duplicate your notes.</li>
-  </ul>
-  <h3>If something doesn&rsquo;t work</h3>
-  <ul class="tips">
-    <li><strong>Nothing shows up:</strong> reload the YouTube tab. Notes are hidden during ads, and Film Room only runs on youtube.com watch pages.</li>
-    <li><strong>A key does nothing:</strong> make sure you&rsquo;re not typing in a text box, and try clicking an empty part of the page first. If another extension uses the same key, it may win.</li>
-    <li><strong>Updates:</strong> when I send a new zip, unzip it over the same folder, then click the reload arrow on Film Room in the extensions page.</li>
-  </ul>
+  <p class="small muted">On a Mac, <kbd>Alt</kbd> is the <kbd>Option</kbd> key. These keys don&rsquo;t work while you&rsquo;re typing in a text box.</p>
+  <p class="small muted">Nothing showing? Reload the YouTube tab. Chrome may show a &ldquo;disable developer mode extensions&rdquo; message when it starts. That is normal for extensions installed this way, so you can close it.</p>
+  <p><a href="/start/guide/">Full guide</a> &middot; <span class="muted">all shortcuts, what the emoji mean, how sharing works</span></p>
 
   <h2 id="feedback">Tell me how it went</h2>
-  <p>After you&rsquo;ve used it on a real video, send me answers to these. Rough is fine, a text is fine.</p>
+  <p>After you&rsquo;ve used it on a real video, text me answers to these. Rough is fine.</p>
   <ol class="q">
-    <li>What video did you use it on, and what were you trying to do?</li>
-    <li>Was anything confusing in the first two minutes, installing or making your first note?</li>
-    <li>Roughly how many notes did you make? Was there a moment it got in your way?</li>
-    <li>Did you send a link to someone? Did it open for them, and what did they say?</li>
-    <li>What is the one thing missing that you would use every week? And would you use this again next week?</li>
+    <li>What video did you use, and what were you trying to do?</li>
+    <li>Roughly how many notes did you make? Did anything confuse you or get in the way?</li>
+    <li>Did you send a link to someone? Did it open for them?</li>
   </ol>
 
   <p class="foot">Film Room is an early personal project. It runs only in your browser, and the share links are the only thing stored on a server.</p>
