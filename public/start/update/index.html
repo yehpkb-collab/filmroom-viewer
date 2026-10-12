@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Update Film Room</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #181a1f; --muted: #5f6672; --line: #e3e5ea; --card: #f5f6f8;
+    --accent: #d8f34a; --ink: #141800; --bar: #9bb90f;
+    --watch: #e0951a; --good: #2ba46a; --bad: #e0453f; --ask: #3b8fe0;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121317; --fg: #f1f2f4; --muted: #a2a8b3; --line: #2b2e36; --card: #1b1d23;
+      --bar: #d8f34a; --link: #7db8f5;
+      --watch: #f2a93b; --good: #3fb97a; --bad: #ef5b5b; --ask: #5aa9f0;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; -webkit-font-smoothing: antialiased; }
+  main { max-width: 720px; margin: 0 auto; padding: 28px 16px 56px; }
+  h1 { font-size: 30px; line-height: 1.15; margin: 0 0 8px; letter-spacing: -0.01em; }
+  h2 { font-size: 21px; margin: 40px 0 6px; letter-spacing: -0.005em; }
+  h3 { font-size: 16px; margin: 22px 0 6px; }
+  p { margin: 0 0 12px; }
+  .lead { font-size: 18px; color: var(--muted); margin-bottom: 18px; }
+  .muted { color: var(--muted); }
+  .small { font-size: 14px; }
+  a:not(.btn) { color: var(--link, #1a6fd1); text-underline-offset: 2px; }
+  .note { display: flex; gap: 10px; margin: 0 0 18px; padding: 10px 14px; background: var(--card); border-left: 4px solid var(--bar); border-radius: 0 10px 10px 0; font-size: 15px; }
+  .note p { margin: 0; }
+  .btn { display: inline-flex; align-items: center; gap: 8px; padding: 13px 20px; font: inherit; font-weight: 600; color: var(--ink); background: var(--accent); border: 0; border-radius: 12px; text-decoration: none; cursor: pointer; }
+  .btn:hover { filter: brightness(1.05); }
+  .btn small { font-weight: 500; opacity: 0.7; }
+  .btn.ghost { color: var(--fg); background: var(--card); box-shadow: inset 0 0 0 1px var(--line); font-weight: 500; padding: 8px 14px; font-size: 14px; }
+
+  ol.steps { list-style: none; margin: 20px 0 0; padding: 0; counter-reset: s; }
+  ol.steps > li { position: relative; margin: 0 0 14px; padding: 14px 16px 12px 58px; background: var(--card); border-radius: 14px; counter-increment: s; }
+  ol.steps > li::before { content: counter(s); position: absolute; left: 16px; top: 14px; width: 30px; height: 30px; border-radius: 50%; background: var(--accent); color: var(--ink); font-weight: 700; line-height: 30px; text-align: center; }
+  ol.steps h3 { margin: 0 0 4px; }
+  ol.steps p { margin-bottom: 8px; }
+  .cmd { display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; margin: 2px 0 8px; }
+  code { padding: 3px 8px; font: 14px ui-monospace, Menlo, Consolas, monospace; background: var(--bg); border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line); user-select: all; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 14px; font-size: 15px; }
+  td { padding: 9px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  td:first-child { white-space: nowrap; width: 1%; padding-right: 16px; }
+  tr:last-child td { border-bottom: 0; }
+  kbd { display: inline-block; min-width: 1.6em; padding: 2px 7px; font: 600 13px/1.4 system-ui, sans-serif; text-align: center; background: var(--bg); border-radius: 6px; box-shadow: inset 0 0 0 1px var(--line), 0 1px 0 var(--line); }
+  .emoji { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 8px; margin: 8px 0 14px; padding: 0; list-style: none; }
+  .emoji li { display: flex; align-items: center; gap: 10px; padding: 8px 12px; background: var(--card); border-radius: 10px; font-size: 15px; }
+  .tile { flex: none; width: 30px; height: 30px; display: grid; place-items: center; font-size: 17px; border-radius: 9px; background: color-mix(in srgb, var(--k) 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k) 58%, transparent); }
+  .k-watch { --k: var(--watch); } .k-good { --k: var(--good); } .k-bad { --k: var(--bad); } .k-ask { --k: var(--ask); }
+  ul.tips { margin: 6px 0 14px; padding-left: 20px; }
+  ul.tips li { margin: 0 0 6px; }
+  ol.q { margin: 10px 0 0; padding-left: 22px; }
+  ol.q li { margin: 0 0 10px; padding-left: 4px; }
+  .foot { margin-top: 40px; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin: 14px 0; }
+
+  /* Printed, it is the two-page handbook: use it, share it, answer the questions (the install steps stay on screen). */
+  @media print {
+    @page { margin: 0.55in; }
+    body { font-size: 11.5px; line-height: 1.45; }
+    main { max-width: none; padding: 0; }
+    .noprint { display: none !important; }
+    .pb { break-before: page; }
+    .emoji li, .note { break-inside: avoid; }
+    h1 { font-size: 24px; }
+    h2 { margin-top: 18px; font-size: 18px; }
+    h3 { margin-top: 14px; }
+    .lead { font-size: 14px; margin-bottom: 8px; }
+    td { padding: 6px 8px; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <h1>Update Film Room</h1>
+  <p class="lead">For people who already have Film Room. It takes about a minute, and your notes stay put.</p>
+  <div class="row">
+    <a class="btn" id="dl" href="/download/film-room-overlay.zip" download>Download Film Room <small>v0.6d &middot; 35 KB</small></a>
+  </div>
+  <p class="small muted">Not installed yet? <a href="/start/">Start here instead</a>.</p>
+
+  <ol class="steps">
+    <li>
+      <h3>Unzip it</h3>
+      <p>Windows: right-click the downloaded file and choose <strong>Extract All</strong>. Mac: double-click it. You get a folder called <strong>film-room-overlay</strong>.</p>
+    </li>
+    <li>
+      <h3>Copy it over the old one</h3>
+      <p>Open the folder you originally loaded Film Room from (the one with <code>manifest.json</code> inside). Copy everything from the new <strong>film-room-overlay</strong> folder into it, and choose <strong>Replace</strong> when asked.</p>
+      <p><strong>Use the same folder.</strong> Your browser treats a different folder as a different extension, and your notes would not be there.</p>
+    </li>
+    <li>
+      <h3>Reload it</h3>
+      <p>Paste this into a new tab&rsquo;s address bar and press Enter:</p>
+      <div class="cmd"><code id="c1">brave://extensions</code><button type="button" class="btn ghost" data-copy="c1">Copy</button></div>
+      <p class="small muted">On Chrome, use <code>chrome://extensions</code> instead.</p>
+      <p>Find Film Room and click the circular <strong>reload arrow</strong> on its card.</p>
+    </li>
+    <li>
+      <h3>Reload YouTube</h3>
+      <p>Reload any YouTube tab that was already open (F5). The new version only runs on a freshly loaded page.</p>
+    </li>
+  </ol>
+  <div class="note"><p><strong>Check that it worked:</strong> open a YouTube video. The small &ldquo;Film Room&rdquo; tag at the top right of the video now says <strong>v0.6d</strong>. If it still shows an older version, redo steps 3 and 4.</p></div>
+
+  <h2 id="new">What&rsquo;s new</h2>
+  <ul class="tips">
+    <li><strong>+ Note button.</strong> The panel and the notes list now have a <strong>+ Note</strong> button next to <strong>+ Bookmark</strong>, the same as pressing <kbd>Alt</kbd> + <kbd>N</kbd>.</li>
+    <li><strong>The panel is always there.</strong> It shows even before a video has any notes, so you can start from it.</li>
+    <li><strong>Move a note while you edit it.</strong> Click the pencil next to a note in the list, then drag the note on the video to move it, or drag its corner to reshape it. Cancel puts it back as it was.</li>
+    <li><strong>Longer notes stay longer.</strong> A note with more words stays on screen longer on its own (up to 12 seconds). The slider in the note box still overrides it.</li>
+  </ul>
+
+  <p class="foot">Film Room is an early personal project. <a href="/start/guide/">Full guide</a> &middot; <a href="/start/">Setup page</a></p>
+</main>
+<script>
+(function () {
+  var btns = document.querySelectorAll('[data-copy]');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].addEventListener('click', function () {
+      var b = this, src = document.getElementById(b.getAttribute('data-copy'));
+      var done = function () { var t = b.textContent; b.textContent = 'Copied'; setTimeout(function () { b.textContent = t; }, 1500); };
+      try {
+        navigator.clipboard.writeText(src.textContent).then(done, function () { select(src); });
+      } catch (e) { select(src); }
+    });
+  }
+  function select(node) {
+    var r = document.createRange(); r.selectNodeContents(node);
+    var s = window.getSelection(); s.removeAllRanges(); s.addRange(r);
+  }
+})();
+</script>
+</body>
+</html>
