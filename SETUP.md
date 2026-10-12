@@ -29,4 +29,4 @@ To update the viewer or the service, upload the changed files to the GitHub repo
 Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the first-note keys and three feedback questions, with a link to the full guide.
 
 ## Versions
-The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.4b (hosted extension zip updated to v0.6c: + Note button, equal weight with + Bookmark). The extension zip is versioned separately (`film-room-overlay-vX.zip`).
+The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.4c (hosted extension zip updated to v0.6d: panel always shown, move/reshape while editing, length-aware note duration). The extension zip is versioned separately (`film-room-overlay-vX.zip`).
