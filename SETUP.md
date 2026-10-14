@@ -52,3 +52,6 @@ The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial chang
 - Listing copy and privacy policy text: `store/`. Policy is published as a Google Doc (link entered in the Privacy tab).
 - Store zip: same code as the sideload zip, with manifest "name" set to "Film Room". Each upload needs a higher manifest `version`, and a new upload restarts review.
 - The store copy has a different extension ID from the sideloaded copy, so notes do not carry over (use Backup / Restore).
+
+## Parked (revisit after the 7-day link test)
+- Pause on drawings (0.9f idea): clicking a shape row jumps and pauses; an optional "Pause on drawings" switch freezes playback when a shape is reached (default on in the viewer, off for the author). Needs the extension and `public/index.html`. Build only if testers say the video moves on before they see the circle. Ship as an update after the store approves 0.9e; the site part waits for Netlify credits (resets Nov 5).
