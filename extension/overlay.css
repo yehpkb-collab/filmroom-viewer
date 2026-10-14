@@ -1,4 +1,4 @@
-/* Film Room v0.9a: one look.
+/* Film Room v0.9b: one look.
    Dark glass over the video, one accent (optic yellow-green) for the things you press,
    and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
    Everything on the video sizes in em, so it scales with the picture. */
@@ -1193,3 +1193,11 @@ html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
 #fr-overlay #fr-undo,
 #fr-overlay #fr-toast { z-index: 5; }
 #fr-drawbar .fr-tool:disabled { opacity: 0.4; cursor: default; }
+
+/* While drawing, the toast and the Undo bar sit at the bottom so they never cover the draw bar at the top */
+#fr-overlay.fr-drawing #fr-toast,
+#fr-overlay.fr-drawing #fr-undo {
+  top: auto;
+  bottom: 6%;
+}
+#fr-overlay.fr-drawing #fr-toast { bottom: 18%; }
