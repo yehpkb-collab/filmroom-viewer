@@ -29,4 +29,4 @@ The share service runs on Netlify. Netlify processes requests as our hosting pro
 - Access to filmroom-viewer.netlify.app: opens shared links in the extension.
 
 ## Contact
-chiyeh@gmail.com
+yehpkb@gmail.com
