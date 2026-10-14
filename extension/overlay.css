@@ -1,0 +1,1112 @@
+/* Film Room v0.8: one look.
+   Dark glass over the video, one accent (optic yellow-green) for the things you press,
+   and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
+   Everything on the video sizes in em, so it scales with the picture. */
+
+#fr-overlay {
+  --fr-surface: rgba(14, 15, 19, 0.8);
+  --fr-hair: rgba(255, 255, 255, 0.13);
+  --fr-text: #f5f6f8;
+  --fr-text2: rgba(255, 255, 255, 0.64);
+  --fr-accent: #d8f34a;
+  --fr-ink: #141800;
+  --fr-watch: #f2a93b;
+  --fr-good: #3fb97a;
+  --fr-bad: #ef5b5b;
+  --fr-ask: #5aa9f0;
+  --fr-glass: rgba(255, 255, 255, 0.1);
+}
+
+/* Sits inside #movie_player, above the video, below YouTube's control bar (z-index ~59). */
+#fr-overlay {
+  position: absolute;
+  z-index: 40;
+  display: none;
+  overflow: hidden;
+  pointer-events: none; /* click-through: never blocks click-to-pause or the controls */
+  font-family: Roboto, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* meaning colours: set on any element, used by its tile */
+.fr-k-watch { --k: var(--fr-watch, #f2a93b); }
+.fr-k-good  { --k: var(--fr-good, #3fb97a); }
+.fr-k-bad   { --k: var(--fr-bad, #ef5b5b); }
+.fr-k-ask   { --k: var(--fr-ask, #5aa9f0); }
+
+/* ---------- Emoji tile (notes, list rows, panel rows) ---------- */
+.fr-tile {
+  flex: none;
+  display: grid;
+  place-items: center;
+  box-sizing: border-box;
+  width: 1.7em;
+  height: 1.7em;
+  border-radius: 0.5em;
+  font-size: 1.15em;
+  line-height: 1;
+  background: color-mix(in srgb, var(--k, #9aa0ad) 26%, transparent);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--k, #9aa0ad) 60%, transparent);
+}
+
+/* Someone else's note: a small person badge */
+.fr-avatar {
+  flex: none;
+  position: relative;
+  width: 1.4em;
+  height: 1.4em;
+  border-radius: 50%;
+  background: #7d819c;
+  overflow: hidden;
+}
+
+.fr-avatar::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 20%;
+  width: 34%;
+  height: 34%;
+  margin-left: -17%;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.fr-avatar::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 60%;
+  width: 66%;
+  height: 60%;
+  margin-left: -33%;
+  border-radius: 50% 50% 0 0;
+  background: #fff;
+}
+
+/* ---------- Notes on the video ---------- */
+/* Notes on screen at the same time stack in one column, bottom-left: earliest on top, newest at the bottom. */
+#fr-stack {
+  position: absolute;
+  left: 2.2%;
+  width: 36%;
+  bottom: 15%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5em;
+  pointer-events: none; /* the gaps stay click-through; the notes themselves can be grabbed */
+}
+
+.fr-item {
+  box-sizing: border-box;
+  display: none; /* inactive notes take no space in the stack */
+  width: fit-content;
+  max-width: 100%;
+}
+
+.fr-item.fr-on {
+  display: flex;
+  animation: fr-fade 0.16s ease;
+}
+
+@keyframes fr-fade {
+  from { opacity: 0; transform: translateY(0.3em); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* the caption card */
+.fr-text {
+  position: relative;
+  align-items: center;
+  gap: 0.65em;
+  padding: 0.5em 0.9em 0.72em 0.5em;
+  border: 1px solid transparent;
+  border-radius: 0.85em;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.38), inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font-weight: 500;
+  line-height: 1.3;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.fr-text .fr-label {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Shared notes: dashed edge and a person badge, never a meaning colour */
+.fr-text.fr-shared {
+  border-color: rgba(255, 255, 255, 0.38);
+  border-style: dashed;
+}
+
+/* time left on screen: a thin bar that shrinks (set from script) */
+.fr-timer {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 0.2em;
+  width: 100%;
+  border-radius: 0 0.2em 0.2em 0;
+  background: var(--fr-accent);
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+/* emoji on its own: just a big tile (its width never matters, so it hugs the tile even when moved) */
+.fr-text.fr-emoji-only {
+  padding: 0.4em 0.4em 0.6em;
+  width: fit-content !important;
+}
+
+.fr-text.fr-emoji-only .fr-emoji {
+  font-size: 2.1em;
+  border-radius: 0.45em;
+}
+
+/* while the note box is open, the other notes step back so they never fight with it.
+   The note you are editing is the exception: bright, outlined, and free to move or reshape. */
+#fr-overlay.fr-capturing .fr-item:not(.fr-editing) {
+  opacity: 0.12;
+  pointer-events: none;
+}
+
+#fr-overlay.fr-capturing .fr-item.fr-editing {
+  outline: 2px dashed var(--fr-accent);
+  outline-offset: 3px;
+}
+
+/* editing a note in the lower half: the box moves to the top so it never covers the note */
+#fr-capture.fr-cap-top {
+  bottom: auto;
+  top: 4%;
+}
+
+#fr-capture .fr-cap-hint {
+  display: none;
+  font-size: 0.8em;
+  color: var(--fr-text2);
+}
+
+/* ---------- Toast ---------- */
+#fr-toast {
+  z-index: 3; /* above the note box, which can sit at the top while you edit */
+  position: absolute;
+  top: 5%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.45em;
+  max-width: 88%;
+  box-sizing: border-box;
+  padding: 0.5em 1em;
+  border-radius: 1.4em;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.38), inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font-size: var(--fr-ui, 14px);
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+#fr-toast.fr-on {
+  display: flex;
+}
+
+#fr-toast .fr-toast-main {
+  display: flex;
+  align-items: center;
+  gap: 0.6em;
+}
+
+#fr-toast.fr-toast-tile {
+  padding-left: 0.4em;
+}
+
+#fr-toast .fr-toast-tile {
+  font-size: 0.95em;
+}
+
+#fr-toast .fr-toast-keys {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25em;
+  color: var(--fr-text2);
+  font-size: 0.85em;
+  padding-bottom: 0.1em;
+}
+
+#fr-toast .fr-toast-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2em;
+  padding: 0.1em 0.45em 0.1em 0.3em;
+  border-radius: 99px;
+  background: var(--fr-glass);
+  color: var(--fr-text);
+}
+
+#fr-toast .fr-toast-key i {
+  font-style: normal;
+  font-size: 0.8em;
+  color: var(--fr-text2);
+}
+
+/* ---------- Capture box (Alt+N) and share box ---------- */
+#fr-capture,
+#fr-sharebox {
+  position: absolute;
+  left: 2.2%;
+  bottom: 15%;
+  display: none;
+  align-items: center;
+  gap: 0.5em;
+  box-sizing: border-box;
+  padding: 0.8em;
+  border-radius: 1.05em;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.5em 1.8em rgba(0, 0, 0, 0.42), inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font-size: var(--fr-ui, 14px);
+  pointer-events: auto; /* these boxes need the mouse and keyboard */
+  white-space: nowrap;
+}
+
+#fr-sharebox {
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: 14%;
+}
+
+#fr-capture .fr-cap-label,
+#fr-sharebox .fr-cap-label {
+  color: var(--fr-text2);
+  font-weight: 600;
+  font-size: 0.8em;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+#fr-capture input[type='text'],
+#fr-sharebox input {
+  font: inherit;
+  color: var(--fr-text);
+  background: rgba(0, 0, 0, 0.35);
+  border: 0;
+  border-radius: 0.7em;
+  padding: 0.65em 0.8em;
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--fr-hair);
+}
+
+#fr-capture input[type='text']:focus,
+#fr-sharebox input:focus {
+  box-shadow: inset 0 0 0 2px var(--fr-accent);
+}
+
+#fr-capture .fr-cap-text,
+#fr-sharebox .fr-cap-text {
+  width: 22em;
+}
+
+/* Buttons: quiet glass pills; the one that matters is filled with the accent */
+.fr-btn {
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--fr-text);
+  background: var(--fr-glass);
+  border: 0;
+  border-radius: 0.65em;
+  padding: 0.4em 0.85em;
+  cursor: pointer;
+}
+
+.fr-btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.fr-btn.fr-btn-primary {
+  color: var(--fr-ink);
+  background: var(--fr-accent);
+}
+
+.fr-btn.fr-btn-primary:hover {
+  background: #e6ff63;
+}
+
+.fr-btn.fr-btn-text {
+  color: var(--fr-text2);
+  background: none;
+}
+
+.fr-btn.fr-btn-text:hover {
+  color: var(--fr-text);
+  background: var(--fr-glass);
+}
+
+/* ---------- Note box: kind row, text, start, duration ---------- */
+#fr-capture {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65em;
+  width: 28em;
+  max-width: 94%;
+  white-space: normal;
+}
+
+#fr-capture .fr-cap-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+#fr-capture .fr-cap-text {
+  width: 100%;
+  box-sizing: border-box;
+  font-size: 1.05em;
+}
+
+#fr-capture .fr-cap-dur {
+  font-size: 0.85em;
+  color: var(--fr-text2);
+  white-space: nowrap;
+}
+
+#fr-capture input[type='range'].fr-cap-secs {
+  flex: 1;
+  min-width: 5em;
+  width: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  accent-color: var(--fr-accent);
+}
+
+.fr-emojibar {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  gap: 0.3em;
+}
+
+#fr-capture .fr-emo {
+  box-sizing: border-box;
+  width: 2em;
+  height: 2em;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1.1em;
+  line-height: 1;
+  color: var(--fr-text);
+  background: rgba(255, 255, 255, 0.07);
+  border: 0;
+  border-radius: 0.6em;
+  box-shadow: inset 0 0 0 1px var(--fr-hair);
+  cursor: pointer;
+}
+
+#fr-capture .fr-emo:hover {
+  background: rgba(255, 255, 255, 0.16);
+}
+
+#fr-capture .fr-emo.fr-sel {
+  background: color-mix(in srgb, var(--k, #9aa0ad) 30%, transparent);
+  box-shadow: inset 0 0 0 2px var(--fr-accent);
+}
+
+#fr-capture .fr-cap-startrow {
+  gap: 0.5em;
+}
+
+#fr-capture .fr-cap-start {
+  flex: 1 1 auto;
+}
+
+#fr-capture .fr-nudge {
+  padding: 0.25em 0.7em;
+  border-radius: 99px;
+}
+
+#fr-capture .fr-nudge:disabled,
+.fr-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+/* ---------- Emoji on the video (the tile) ---------- */
+.fr-text .fr-emoji {
+  margin: 0;
+}
+
+/* ---------- Version badge ---------- */
+#fr-debug {
+  position: absolute;
+  right: 0.5em;
+  top: 0.5em;
+  background: rgba(14, 15, 19, 0.5);
+  color: rgba(255, 255, 255, 0.7);
+  font: 11px/1.3 system-ui, sans-serif;
+  padding: 2px 8px;
+  border-radius: 99px;
+  pointer-events: auto; /* so the hover tooltip works */
+  cursor: default;
+}
+
+/* ---------- Docked panel (YouTube's right column) ---------- */
+/* Own light/dark palette keyed to YouTube's html[dark] flag. (YouTube's theme variables did not always resolve, which left light text on a light page.) */
+#fr-panel {
+  --p-bar: #9bb90f;
+  --p-on: rgba(180, 209, 31, 0.17);
+  --p-text: #0f0f0f;
+  --p-text2: #4a4a4a;
+  --p-bg: rgba(0, 0, 0, 0.05);
+  --p-line: rgba(0, 0, 0, 0.12);
+  --p-chip: rgba(0, 0, 0, 0.07);
+  --p-chip-hover: rgba(0, 0, 0, 0.14);
+  box-sizing: border-box;
+  margin: 0 0 12px;
+  padding: 12px 12px 10px;
+  background: var(--p-bg);
+  color: var(--p-text);
+  border-radius: 14px;
+  box-shadow: inset 0 0 0 1px var(--p-line);
+  font-family: Roboto, Arial, sans-serif;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+}
+
+html[dark] #fr-panel {
+  --p-text: #f1f1f1;
+  --p-text2: #b8b8b8;
+  --p-bg: rgba(255, 255, 255, 0.08);
+  --p-line: rgba(255, 255, 255, 0.14);
+  --p-chip: rgba(255, 255, 255, 0.1);
+  --p-chip-hover: rgba(255, 255, 255, 0.2);
+  --p-bar: #d8f34a;
+  --p-on: rgba(216, 243, 74, 0.12);
+}
+
+#fr-panel .fr-k-watch { --k: #e0951a; }
+#fr-panel .fr-k-good  { --k: #2ba46a; }
+#fr-panel .fr-k-bad   { --k: #e0453f; }
+#fr-panel .fr-k-ask   { --k: #3b8fe0; }
+
+html[dark] #fr-panel .fr-k-watch { --k: #f2a93b; }
+html[dark] #fr-panel .fr-k-good  { --k: #3fb97a; }
+html[dark] #fr-panel .fr-k-bad   { --k: #ef5b5b; }
+html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
+
+#fr-panel .fr-panel-head {
+  display: flex;
+  flex-wrap: wrap; /* a narrow panel: the buttons drop to a second line instead of squeezing the text */
+  align-items: center;
+  gap: 4px 8px;
+  margin-bottom: 10px;
+}
+
+#fr-panel .fr-panel-title {
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+#fr-panel .fr-brand-icon {
+  width: 20px;
+  height: 20px;
+}
+
+#fr-panel .fr-panel-count {
+  flex: 1;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--p-text2);
+}
+
+#fr-panel button {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: inherit;
+  background: var(--p-chip);
+  border: 0;
+  border-radius: 10px;
+  height: 34px;
+  padding: 0 12px;
+  cursor: pointer;
+}
+
+#fr-panel button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+#fr-panel button:hover:not(:disabled) {
+  background: var(--p-chip-hover);
+}
+
+#fr-panel .fr-panel-hide {
+  white-space: nowrap;
+  height: auto;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--p-text2);
+  background: none;
+  border-radius: 8px;
+}
+
+#fr-panel .fr-panel-steps {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+/* One row: Prev, Next, + Note, + Bookmark. The two arrows give up width to the two that add things. */
+#fr-panel {
+  container-type: inline-size;
+}
+
+#fr-panel .fr-panel-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  padding: 0 6px;
+  white-space: nowrap;
+}
+
+/* + Note and + Bookmark carry equal weight: both filled, same size */
+#fr-panel .fr-panel-note,
+#fr-panel .fr-panel-bm {
+  flex: 1.6 1 0;
+  white-space: nowrap;
+  color: #141800;
+  background: #d8f34a;
+}
+
+#fr-panel .fr-panel-note:hover {
+  background: #e6ff63;
+}
+
+/* A narrow panel: Prev and Next shrink to just their arrows */
+@container (max-width: 29em) {
+  #fr-panel .fr-lbl {
+    display: none;
+  }
+
+  #fr-panel .fr-panel-btn:not(.fr-panel-note):not(.fr-panel-bm) {
+    flex: 0 0 2.9em;
+  }
+}
+
+/* A very narrow panel: two rows, Prev and Next above + Note and + Bookmark */
+@container (max-width: 22em) {
+  #fr-panel .fr-panel-steps {
+    flex-wrap: wrap;
+  }
+
+  #fr-panel .fr-lbl {
+    display: inline;
+  }
+
+  #fr-panel .fr-panel-btn:not(.fr-panel-note):not(.fr-panel-bm),
+  #fr-panel .fr-panel-note,
+  #fr-panel .fr-panel-bm {
+    flex: 1 1 40%;
+  }
+}
+
+#fr-panel .fr-panel-bm:hover {
+  background: #e6ff63;
+}
+
+#fr-panel .fr-pempty {
+  padding: 14px 12px;
+  font-size: 13px;
+  color: var(--p-text2);
+}
+
+#fr-panel .fr-panel-list {
+  position: relative; /* so row positions are measured from the list, for scrolling the current note into view */
+  max-height: 38vh;
+  overflow-y: auto;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--p-text) 4%, transparent);
+  box-shadow: inset 0 0 0 1px var(--p-line);
+}
+
+#fr-panel .fr-prow {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 6px 12px 6px 14px;
+  border-bottom: 1px solid var(--p-line);
+  cursor: pointer;
+}
+
+#fr-panel .fr-prow:last-child {
+  border-bottom: 0;
+}
+
+#fr-panel .fr-prow:hover {
+  background: var(--p-bg);
+}
+
+#fr-panel .fr-prow.fr-on {
+  background: var(--p-on);
+}
+
+#fr-panel .fr-prow.fr-on::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  bottom: 6px;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--p-bar);
+}
+
+#fr-panel .fr-ptime {
+  flex: none;
+  min-width: 36px;
+  font-size: 12px;
+  color: var(--p-text2);
+}
+
+#fr-panel .fr-prow .fr-tile {
+  font-size: 13px;
+}
+
+#fr-panel .fr-ptext {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+#fr-panel .fr-prow.fr-emoji-row .fr-ptext {
+  flex: none;
+}
+
+#fr-panel .fr-pmeaning {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--p-text2);
+}
+
+#fr-panel .fr-pwho {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--p-text2);
+}
+
+#fr-panel .fr-pwho .fr-avatar {
+  width: 20px;
+  height: 20px;
+}
+
+#fr-panel .fr-panel-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 9px;
+  font-size: 11px;
+  color: var(--p-text2);
+}
+
+#fr-panel kbd {
+  font: 600 10.5px/1 Roboto, Arial, sans-serif;
+  padding: 3px 5px;
+  border-radius: 5px;
+  color: var(--p-text);
+  background: color-mix(in srgb, var(--p-text) 8%, transparent);
+  box-shadow: inset 0 0 0 1px var(--p-line), 0 1px 0 var(--p-line);
+}
+
+/* Undo bar after deleting a note */
+#fr-undo {
+  position: absolute;
+  top: 14%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 0.9em;
+  padding: 0.4em 0.5em 0.4em 1em;
+  border-radius: 99px;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.38), inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font-size: var(--fr-ui, 14px);
+  pointer-events: auto;
+  white-space: nowrap;
+}
+
+#fr-undo .fr-btn {
+  color: var(--fr-accent);
+  background: none;
+}
+
+/* ---------- Move and scale each note ---------- */
+
+/* notes you moved sit in their own layer, placed by %, and scale with their width */
+#fr-free {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+#fr-free .fr-item {
+  position: absolute;
+}
+
+/* grab any note to move it; the corner scales it */
+.fr-item {
+  position: relative;
+}
+
+#fr-stack .fr-item,
+#fr-free .fr-item {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+#fr-stack .fr-item.fr-dragging,
+#fr-free .fr-item.fr-dragging {
+  cursor: grabbing;
+}
+
+#fr-stack .fr-item:hover,
+#fr-free .fr-item:hover,
+.fr-item.fr-dragging {
+  outline: 1px dashed rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+}
+
+.fr-item .fr-note-grip {
+  position: absolute;
+  right: 0.25em;
+  bottom: 0.3em;
+  width: 0.9em;
+  height: 0.9em;
+  border-right: 3px solid rgba(255, 255, 255, 0.9);
+  border-bottom: 3px solid rgba(255, 255, 255, 0.9);
+  border-radius: 0 0 0.25em 0;
+  box-sizing: border-box;
+  cursor: nwse-resize;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.fr-item:hover .fr-note-grip,
+.fr-item.fr-dragging .fr-note-grip {
+  opacity: 1;
+}
+
+/* on a note: a small - / + pill, only when you point at the note */
+.fr-item .fr-note-ctl {
+  position: absolute;
+  top: 0.2em;
+  right: 0.3em;
+  display: flex;
+  gap: 0.15em;
+  padding: 0.05em 0.15em;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 0.4em;
+  font-size: 0.75em;
+  line-height: 1;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+.fr-item:hover .fr-note-ctl {
+  opacity: 1;
+}
+
+.fr-item.fr-dragging .fr-note-ctl {
+  opacity: 0;
+}
+
+.fr-item .fr-note-ctl button {
+  width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.fr-item .fr-note-ctl button:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.22);
+  border-radius: 0.3em;
+}
+
+.fr-item .fr-note-ctl button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+/* the pencil edits the note; the arrow puts a moved note back (only shown on a note you have moved) */
+.fr-item .fr-note-ctl .fr-nc-back {
+  display: none;
+}
+
+.fr-item.fr-moved .fr-note-ctl .fr-nc-back {
+  display: block;
+}
+
+/* while a note is being edited its own pill stays out of the way */
+#fr-overlay.fr-capturing .fr-item .fr-note-ctl {
+  display: none;
+}
+
+/* ---------- Docked panel: row actions, Remove shared, Alt+B settings, Copy link (v0.7) ---------- */
+
+/* Edit and delete only show when you point at (or tab to) one of your rows */
+#fr-panel .fr-pacts {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  margin-left: auto;
+}
+
+#fr-panel .fr-pedit,
+#fr-panel .fr-pdel {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--p-text2);
+  background: none;
+  border-radius: 8px;
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+
+#fr-panel .fr-prow:hover .fr-pedit,
+#fr-panel .fr-prow:hover .fr-pdel,
+#fr-panel .fr-prow:focus-within .fr-pedit,
+#fr-panel .fr-prow:focus-within .fr-pdel {
+  opacity: 1;
+}
+
+#fr-panel .fr-pdel:hover:not(:disabled) {
+  color: #ff6b62;
+}
+
+/* Remove shared sits in the header next to Hide */
+#fr-panel .fr-panel-rm {
+  color: var(--p-text2);
+}
+
+/* Alt+B line: "Alt+B bookmark 👀 · 2 s early ▾", opens to the 8 emoji and the lead-in choices */
+#fr-panel .fr-pbm-row {
+  margin-top: 8px;
+}
+
+#fr-panel .fr-pbm-toggle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  width: 100%;
+  height: auto;
+  padding: 4px 2px;
+  font-size: 12px;
+  font-weight: 500;
+  text-align: left;
+  color: var(--p-text2);
+  background: none;
+  border-radius: 8px;
+}
+
+#fr-panel .fr-pbm-toggle:hover:not(:disabled) {
+  color: var(--p-text);
+  background: none;
+}
+
+#fr-panel .fr-pbm-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#fr-panel .fr-pbm-cur {
+  flex: none;
+  font-size: 16px;
+  line-height: 1;
+}
+
+#fr-panel .fr-pbm-lead,
+#fr-panel .fr-pbm-chev {
+  flex: none;
+  white-space: nowrap;
+}
+
+#fr-panel .fr-pbm-opts {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  justify-items: center;
+  margin-top: 4px;
+}
+
+#fr-panel .fr-pbm-emo {
+  width: auto;
+  height: auto;
+  padding: 3px 4px;
+  font-size: min(18px, 6.2cqw);
+  line-height: 1;
+  background: none;
+  border-radius: 50%;
+}
+
+#fr-panel .fr-pbm-emo.fr-sel {
+  background: color-mix(in srgb, var(--p-text) 18%, transparent);
+}
+
+#fr-panel .fr-pbm-leads {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--p-text2);
+}
+
+#fr-panel .fr-pbm-leadcap {
+  margin-right: 3px;
+}
+
+#fr-panel .fr-pbm-leadbtn {
+  height: auto;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  color: inherit;
+  background: none;
+  border-radius: 999px;
+  box-shadow: inset 0 0 0 1px var(--p-line);
+}
+
+#fr-panel .fr-pbm-leadbtn.fr-sel {
+  color: #141800;
+  background: #d8f34a;
+  box-shadow: none;
+}
+
+/* Copy link: a quiet full-width button under the list */
+#fr-panel .fr-panel-copy {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+}
+
+/* The editor's Delete sits at the end of the row, in a warning colour */
+#fr-overlay .fr-cap-del {
+  margin-left: auto;
+  color: #ff8a80;
+}
+
+/* ---------- 0.8: backup row, version, first-run card, keyboard focus ---------- */
+#fr-panel .fr-panel-files {
+  display: flex;
+  gap: 8px;
+}
+#fr-panel .fr-panel-files .fr-panel-copy {
+  flex: 1 1 0;
+  width: auto;
+}
+#fr-panel .fr-panel-ver {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+#fr-firstrun {
+  position: absolute;
+  z-index: 3;
+  top: 12%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5em;
+  max-width: 88%;
+  box-sizing: border-box;
+  padding: 0.8em 1.1em;
+  border-radius: 1.2em;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.38), inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font-size: var(--fr-ui, 14px);
+  line-height: 1.3;
+  pointer-events: auto;
+}
+#fr-firstrun.fr-on {
+  display: flex;
+}
+#fr-firstrun .fr-fr-title {
+  font-weight: 600;
+}
+#fr-firstrun .fr-fr-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+  color: var(--fr-text2);
+}
+#fr-firstrun kbd {
+  padding: 0.1em 0.45em;
+  border-radius: 0.4em;
+  background: var(--fr-glass);
+  box-shadow: inset 0 0 0 1px var(--fr-hair);
+  color: var(--fr-text);
+  font: inherit;
+  font-size: 0.92em;
+}
+#fr-firstrun .fr-btn {
+  align-self: flex-end;
+}
+
+/* Visible keyboard focus (Tab). Mouse clicks don't trigger it. */
+#fr-overlay button:focus-visible,
+#fr-overlay input:focus-visible,
+#fr-panel button:focus-visible {
+  outline: 2px solid #3ea6ff;
+  outline-offset: 2px;
+}

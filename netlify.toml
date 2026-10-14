@@ -7,3 +7,21 @@
 
 [functions]
   node_bundler = "esbuild"
+
+# Security headers. The Content-Security-Policy is Report-Only on purpose: it logs what it WOULD block in the
+# browser console (F12) without breaking anything. Open a short link with F12 open; if the console shows no
+# "Content Security Policy" warnings, rename the key to Content-Security-Policy to start enforcing it.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    X-Frame-Options = "DENY"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; frame-src https://www.youtube.com https://www.youtube-nocookie.com; img-src 'self' data: https://i.ytimg.com; style-src 'self' 'unsafe-inline'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+
+# The extension zip and its version file must never be served stale.
+[[headers]]
+  for = "/download/*"
+  [headers.values]
+    Cache-Control = "no-cache"

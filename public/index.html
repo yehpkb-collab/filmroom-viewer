@@ -40,6 +40,26 @@
   @supports not (aspect-ratio: 16 / 9) { .player-wrap { height: 0; padding-top: 56.25%; } }
   .player-wrap iframe, .player-wrap #player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; border: 0; }
 
+  /* Notes drawn on the video (the same note stack the extension shows on YouTube). Click-through. */
+  .vo { position: absolute; left: 50%; bottom: 15%; transform: translateX(-50%); width: min(86%, 680px); display: flex; flex-direction: column; align-items: center; gap: 6px; pointer-events: none; z-index: 2; }
+  .vo-item { display: flex; align-items: center; gap: 10px; max-width: 100%; padding: 8px 14px; border-radius: 12px; background: rgba(14, 15, 19, 0.82); color: #f5f6f8; font-size: clamp(14px, 2.3vw, 24px); line-height: 1.3; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.13); }
+  .vo-item .vo-text { overflow-wrap: anywhere; }
+  .vo-item .vo-emoji { font-size: 1.5em; line-height: 1; flex: none; }
+  .vo-item.emoji-only { padding: 6px 12px; }
+  .vo-item.emoji-only .vo-emoji { font-size: 2.2em; }
+  .vo-item[data-k] { border-left: 5px solid var(--line); }
+  .vo-item[data-k="watch"] { border-left-color: var(--k-watch); }
+  .vo-item[data-k="good"] { border-left-color: var(--k-good); }
+  .vo-item[data-k="bad"] { border-left-color: var(--k-bad); }
+  .vo-item[data-k="ask"] { border-left-color: var(--k-ask); }
+  .player-wrap:fullscreen { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; }
+  .player-wrap:-webkit-full-screen { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; }
+  .player-wrap:fullscreen .vo { bottom: 12%; width: min(80%, 900px); }
+  .player-wrap:-webkit-full-screen .vo { bottom: 12%; width: min(80%, 900px); }
+  .vo-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .vo-ctl button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .vo-ctl button[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #strip { margin-top: 12px; min-height: 76px; padding: 12px 14px; background: var(--card); border-left: 4px solid var(--line); border-radius: 0 8px 8px 0; }
   #strip.live { border-left-color: var(--accent); }
   .strip-item { display: flex; gap: 12px; align-items: baseline; font-size: 20px; line-height: 1.35; }
@@ -107,7 +127,7 @@
 
   <section id="viewer" hidden>
     <div class="hint" id="hint" role="note" hidden>
-      <p><strong>Watch it here to see the notes.</strong> They play on this page, next to the video. If you open the video on YouTube itself, you get the plain video without them.</p>
+      <p><strong>Watch it here to see the notes.</strong> They play right on the video and in the list. If you open the video on YouTube itself, you get the plain video without them.</p>
       <button type="button" id="hintX" aria-label="Dismiss this tip" title="Dismiss">&times;</button>
     </div>
     <div class="ctl-row">
@@ -117,6 +137,11 @@
         <button type="button" data-size="large" aria-pressed="false">Large</button>
         <button type="button" data-size="full" aria-pressed="false">Full</button>
       </div>
+      <div class="vo-ctl" role="group" aria-label="Notes on the video">
+        <span>Notes on video</span>
+        <button type="button" data-vo="on" aria-pressed="true">On</button>
+        <button type="button" data-vo="off" aria-pressed="false">Off</button>
+      </div>
       <div class="notes-ctl" role="group" aria-label="Notes position">
         <span>Notes</span>
         <button type="button" data-notes="below" aria-pressed="false">Below</button>
@@ -124,13 +149,14 @@
       </div>
     </div>
     <div class="stage">
-      <div class="player-wrap"><div id="player"></div></div>
+      <div class="player-wrap" id="wrap"><div id="player"></div><div class="vo" id="vo" aria-hidden="true"></div></div>
       <div class="notes-cell">
         <div class="notes-col">
           <div id="strip" aria-live="polite"></div>
           <div class="controls">
             <button type="button" id="prev">Previous note</button>
             <button type="button" id="next">Next note</button>
+            <button type="button" id="fs" hidden>Full screen with notes</button>
           </div>
           <ol id="list"></ol>
         </div>
@@ -274,6 +300,39 @@
     });
   }
 
+  // ---------- notes on the video ----------
+  var VO_KEY = 'filmroom_viewer_overlay', voOn = true;
+  function loadVo() { try { voOn = localStorage.getItem(VO_KEY) !== '0'; } catch (e) { voOn = true; } }
+  function setVo(on, remember) {
+    voOn = !!on;
+    var btns = document.querySelectorAll('.vo-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String((btns[i].getAttribute('data-vo') === 'on') === voOn));
+    if (remember) { try { localStorage.setItem(VO_KEY, voOn ? '1' : '0'); } catch (e) { /* ignore */ } }
+    lastKey = null; update();
+  }
+  function renderOverlay(active) {
+    var vo = $('vo');
+    vo.textContent = '';
+    if (!voOn) return;
+    active.forEach(function (idx) {
+      var nn = data.notes[idx];
+      var item = el('div', 'vo-item' + (nn.emoji && !nn.text ? ' emoji-only' : ''));
+      if (nn.emoji) item.setAttribute('data-k', EMOJI_KIND[nn.emoji]);
+      if (nn.emoji) item.appendChild(el('span', 'vo-emoji', nn.emoji));
+      if (nn.text) item.appendChild(el('span', 'vo-text', nn.text));
+      vo.appendChild(item);
+    });
+  }
+  function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
+  function canFs() { var w = $('wrap'); return !!(w && (w.requestFullscreen || w.webkitRequestFullscreen)); }
+  function toggleFs() {
+    var w = $('wrap');
+    try {
+      if (fsElement()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); }
+      else { (w.requestFullscreen || w.webkitRequestFullscreen).call(w); }
+    } catch (e) { /* not allowed here: the YouTube player's own controls still work */ }
+  }
+
   function jumpTo(seconds) {
     if (!player) return;
     try {
@@ -318,6 +377,7 @@
         var msg = key === 'done' ? 'No more notes.' : (t < data.notes[0].start ? 'First note at ' : 'Next note at ') + fmt(key.slice(5) * 1);
         strip.appendChild(el('div', 'strip-idle', msg));
       }
+      renderOverlay(active);
       data.notes.forEach(function (n, j) {
         var row = $('row' + j);
         if (row) row.className = active.indexOf(j) >= 0 ? 'on' : '';
@@ -361,7 +421,7 @@
       videoId: data.id,
       width: '100%',
       height: '100%',
-      playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+      playerVars: { playsinline: 1, rel: 0, modestbranding: 1, fs: canFs() ? 0 : 1 }, // our own full screen keeps the notes on the video
       events: { onReady: onReady, onError: onError, onStateChange: update }
     });
   }
@@ -383,6 +443,11 @@
     buildList();
     $('prev').addEventListener('click', prevNote);
     $('next').addEventListener('click', nextNote);
+    if (canFs()) { $('fs').hidden = false; $('fs').addEventListener('click', toggleFs); }
+    loadVo();
+    setVo(voOn, false);
+    var vb = document.querySelectorAll('.vo-ctl button');
+    for (var q = 0; q < vb.length; q++) vb[q].addEventListener('click', function () { setVo(this.getAttribute('data-vo') === 'on', true); });
     $('extLink').href = 'https://www.youtube.com/watch?v=' + data.id + '#fr=' + hash;
     $('ext').hidden = false;
     $('hint').hidden = hintDismissed();
@@ -478,7 +543,7 @@
     }, function () { var e3 = new Error('offline'); e3.network = true; throw e3; });
   }
 
-  window.__fr = { decode: decode, sanitize: sanitize, init: init, getSize: getSize, setSize: setSize, getNotesPref: getNotesPref, setNotes: setNotes };
+  window.__fr = { setVo: setVo, decode: decode, sanitize: sanitize, init: init, getSize: getSize, setSize: setSize, getNotesPref: getNotesPref, setNotes: setNotes };
   window.addEventListener('hashchange', function () { location.reload(); });
   init();
 })();

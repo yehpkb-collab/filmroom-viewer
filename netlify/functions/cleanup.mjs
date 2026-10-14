@@ -6,6 +6,8 @@ export default async () => {
   const removed = await cleanup(
     getStore({ name: 'shares', consistency: 'strong' }),
     getStore({ name: 'ratelimit' }),
+    undefined,
+    getStore({ name: 'stats', consistency: 'strong' }),
   );
   console.log('Film Room cleanup: removed', removed, 'expired links');
 };

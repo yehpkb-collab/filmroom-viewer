@@ -6,6 +6,8 @@ export default async (req, context) => {
     return await handle(req, {
       shares: getStore({ name: 'shares', consistency: 'strong' }),
       rates: getStore({ name: 'ratelimit' }),
+      stats: getStore({ name: 'stats', consistency: 'strong' }),
+      statsToken: process.env.STATS_TOKEN,
       ip: context && context.ip,
     });
   } catch (err) {
@@ -17,4 +19,4 @@ export default async (req, context) => {
   }
 };
 
-export const config = { path: ['/api/share', '/api/share/*'] };
+export const config = { path: ['/api/share', '/api/share/*', '/api/stats'] };
