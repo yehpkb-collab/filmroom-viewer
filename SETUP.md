@@ -43,4 +43,4 @@ Run `npm test` before pushing a change to `netlify/`.
 Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the first-note keys and three feedback questions, with a link to the full guide.
 
 ## Versions
-The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.8 (hosted extension zip is v0.9c). Deploy the site before (or together with) giving anyone extension 0.9: the short-link service only accepts drawings from site v0.7 on, and an older service answers 400, so sharing falls back to the long link. The extension zip is versioned separately (`film-room-overlay-vX.zip`).
+The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.8a (hosted extension zip is v0.9d). Deploy the site before (or together with) giving anyone extension 0.9: the short-link service only accepts drawings from site v0.7 on, and an older service answers 400, so sharing falls back to the long link. The extension zip is versioned separately (`film-room-overlay-vX.zip`).

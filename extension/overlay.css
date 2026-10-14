@@ -1,4 +1,4 @@
-/* Film Room v0.9c: one look.
+/* Film Room v0.9d: one look.
    Dark glass over the video, one accent (optic yellow-green) for the things you press,
    and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
    Everything on the video sizes in em, so it scales with the picture. */
@@ -1295,3 +1295,7 @@ html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
 #fr-panel .fr-pshicon { width: 1.4em; text-align: center; font-size: 15px; color: #c99a00; }
 #fr-panel .fr-pshared .fr-pshicon { color: #3b9fd6; }
 #fr-panel .fr-pnolabel { opacity: 0.6; font-style: italic; }
+
+/* Shapes point at things, so they sit above the notes (never hidden behind a note box); the note editor stays above them */
+#fr-overlay #fr-shapes { z-index: 1; }
+#fr-overlay #fr-capture { z-index: 2; }
