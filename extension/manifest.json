@@ -3,7 +3,7 @@
   "name": "Film Room v0.9e",
   "version": "0.9.5",
   "version_name": "0.9e",
-  "description": "Timed notes, quick bookmarks and labeled shapes on YouTube videos, with share links. Alt+B bookmark, Alt+N note, Alt+A draw, Alt+H hide, Alt+S share.",
+  "description": "Timed notes, bookmarks and labeled shapes on YouTube videos, with share links. Alt+N note, Alt+B bookmark, Alt+A draw, Alt+S share.",
   "permissions": [
     "storage"
   ],
