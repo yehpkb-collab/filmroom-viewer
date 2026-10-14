@@ -113,8 +113,8 @@ function buildPanel() {
   panelCountEl.className = 'fr-panel-count';
   head.appendChild(title);
   head.appendChild(panelCountEl);
-  panelRmBtn = panelButton('Remove shared', 'fr-panel-hide fr-panel-rm', () => clearShared());
-  panelRmBtn.title = 'Remove the notes shared with you (your own notes are not affected). You can undo it for a few seconds.';
+  panelRmBtn = panelButton('Clear shared notes', 'fr-panel-hide fr-panel-rm', () => clearShared());
+  panelRmBtn.title = 'Clear the notes and shapes other people shared with you from this video (your own are not affected). You can undo it for a few seconds.';
   panelRmBtn.style.display = 'none';
   head.appendChild(panelRmBtn);
   head.appendChild(panelButton('Hide', 'fr-panel-hide', () => setPanel(false)));
@@ -177,14 +177,30 @@ function buildPanel() {
   panelBmRowEl = document.createElement('div');
   panelBmRowEl.className = 'fr-pbm-row';
   panelEl.appendChild(panelBmRowEl);
-  const copyBtn = panelButton('Copy link', 'fr-panel-copy', () => shareLink());
-  copyBtn.title = 'Copy a share link to your notes (Alt+S)';
+  const copyBtn = panelButton('Copy share link', 'fr-panel-copy fr-panel-share', () => shareLink());
+  copyBtn.title = 'Copy a link to your notes and shapes for this video, to send to someone (Alt+S)';
   panelEl.appendChild(copyBtn);
-  // Backup: all your notes to a file and back (for a second computer, a reinstall, or a safety copy).
+  // Backup (for you only, folded away): all your notes to a file and back, for a second computer, a reinstall, or a safety copy.
+  const backupToggle = panelButton('Backup \u25BE', 'fr-panel-backuptoggle', () => {
+    const open = fileWrap.style.display === 'none';
+    fileWrap.style.display = open ? '' : 'none';
+    backupToggle.textContent = open ? 'Backup \u25B4' : 'Backup \u25BE';
+    backupToggle.setAttribute('aria-expanded', String(open));
+  });
+  backupToggle.setAttribute('aria-expanded', 'false');
+  backupToggle.title = 'Save your notes to a file, or move them to another computer';
+  panelEl.appendChild(backupToggle);
+  const fileWrap = document.createElement('div');
+  fileWrap.className = 'fr-panel-backup';
+  fileWrap.style.display = 'none';
+  const fileHint = document.createElement('div');
+  fileHint.className = 'fr-panel-backuphint';
+  fileHint.textContent = 'For you only: save your notes to a file, or move them to another computer. To share with someone, use Copy share link.';
+  fileWrap.appendChild(fileHint);
   const fileRow = document.createElement('div');
   fileRow.className = 'fr-panel-files';
-  const exportBtn = panelButton('Export notes', 'fr-panel-copy', () => exportAll());
-  exportBtn.title = 'Save all your notes (every video) to a file';
+  const exportBtn = panelButton('Back up my notes', 'fr-panel-copy', () => exportAll());
+  exportBtn.title = 'Save all your notes and shapes (every video) to a file';
   const importInput = document.createElement('input');
   importInput.type = 'file';
   importInput.accept = '.json,application/json';
@@ -194,12 +210,13 @@ function buildPanel() {
     importInput.value = '';
     importFile(f);
   });
-  const importBtn = panelButton('Import notes', 'fr-panel-copy', () => importInput.click());
-  importBtn.title = 'Add notes from a file made by Export (nothing is overwritten)';
+  const importBtn = panelButton('Restore from backup', 'fr-panel-copy', () => importInput.click());
+  importBtn.title = 'Add notes from a backup file (nothing is overwritten)';
   fileRow.appendChild(exportBtn);
   fileRow.appendChild(importBtn);
   fileRow.appendChild(importInput);
-  panelEl.appendChild(fileRow);
+  fileWrap.appendChild(fileRow);
+  panelEl.appendChild(fileWrap);
   renderPanelBm();
 
   const foot = document.createElement('div');

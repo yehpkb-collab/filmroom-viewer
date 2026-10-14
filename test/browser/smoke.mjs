@@ -73,7 +73,8 @@ results.timeline = seen.map((x) => x.join(':')).join(' ');
 // 5. export
 await page.evaluate(() => document.querySelector('video').pause());
 const dl = page.waitForEvent('download', { timeout: 5000 }).catch(() => null);
-const expBtn = page.locator('#fr-panel button', { hasText: 'Export notes' });
+await page.locator("#fr-panel button", { hasText: "Backup" }).first().click();
+const expBtn = page.locator('#fr-panel button', { hasText: 'Back up my notes' });
 results.hasExportButton = (await expBtn.count()) > 0;
 let exported = null;
 if (results.hasExportButton) {

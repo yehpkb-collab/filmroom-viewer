@@ -54,7 +54,7 @@ await page.waitForTimeout(500);
 out.liveAtTime = await page.evaluate(() => document.querySelectorAll('#fr-shapes .fr-shape.fr-on').length);
 // export includes shapes, wipe, import
 const dl = page.waitForEvent('download');
-await page.evaluate(() => [...document.querySelectorAll('#fr-panel button')].find((b) => b.textContent === 'Export notes').click());
+await page.evaluate(() => [...document.querySelectorAll('#fr-panel button')].find((b) => b.textContent === 'Back up my notes').click());
 const d = await dl; const p = '' + (process.env.SMOKE_DIR || '/tmp/smoke') + '/export-shapes.json'; await d.saveAs(p);
 const ex = JSON.parse(fs.readFileSync(p, 'utf8')); out.exportShapes = Object.values(ex.shapes || {}).map((a) => a.length);
 await sw.evaluate(() => chrome.storage.local.clear()); await page.reload(); await page.waitForSelector('#fr-shapes', { state: 'attached' }); await page.waitForTimeout(500);
