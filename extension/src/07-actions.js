@@ -590,6 +590,10 @@ function onKeyDown(e) {
     e.preventDefault();
     e.stopPropagation();
     toggleDraw();
+  } else if (e.code === 'KeyH') {
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMarkup();
   } else if (e.code === 'KeyS') {
     e.preventDefault();
     e.stopPropagation();

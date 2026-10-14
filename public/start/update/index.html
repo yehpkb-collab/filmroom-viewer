@@ -81,7 +81,7 @@
   <h1>Update Film Room</h1>
   <p class="lead">For people who already have Film Room. It takes about a minute, and your notes stay put.</p>
   <div class="row">
-    <a class="btn" id="dl" href="/download/film-room-overlay.zip" download>Download Film Room <small>v0.9b &middot; 56 KB</small></a>
+    <a class="btn" id="dl" href="/download/film-room-overlay.zip" download>Download Film Room <small>v0.9c &middot; 60 KB</small></a>
   </div>
   <p class="small muted" id="verline" hidden>Version <span id="vv"></span> &middot; SHA-256 <code id="sha" style="word-break:break-all"></code><br>To check your download, run <code>certutil -hashfile film-room-overlay.zip SHA256</code> (Windows) or <code>shasum -a 256 film-room-overlay.zip</code> (Mac) and compare.</p>
   <p class="small muted">Not installed yet? <a href="/start/">Start here instead</a>.</p>
@@ -108,10 +108,14 @@
       <p>Reload any YouTube tab that was already open (F5). The new version only runs on a freshly loaded page.</p>
     </li>
   </ol>
-  <div class="note"><p><strong>Check that it worked:</strong> open a YouTube video. The Film Room panel beside the video now shows <strong>v0.9b</strong> at the bottom right. If it still shows an older version, redo steps 3 and 4.</p></div>
+  <div class="note"><p><strong>Check that it worked:</strong> open a YouTube video. The Film Room panel beside the video now shows <strong>v0.9c</strong> at the bottom right. If it still shows an older version, redo steps 3 and 4.</p></div>
 
   <h2 id="new">What&rsquo;s new</h2>
   <ul class="tips">
+    <li><strong>Labels on shapes.</strong> After you draw a shape, a small text box opens beside it. Type what it points at and press <kbd>Enter</kbd>. The label shows next to the shape for as long as the shape is up, travels in your share link, and shows on the viewer page. Click a label (while drawing) to change it. The <strong>Label</strong> button in the draw bar turns the text box off if you want quick unlabeled shapes.</li>
+    <li><strong>Shapes in the panel list.</strong> Every shape is now a row in the list, in time order with your notes. Click to jump to it, use the pencil to edit its label, or &times; to delete it.</li>
+    <li><strong>Hide notes or shapes on the video.</strong> <strong>Notes</strong> and <strong>Shapes</strong> switches in the panel (and on the viewer page) hide them from the picture, so you can watch the plain video. <kbd>Alt</kbd> + <kbd>H</kbd> hides or shows both. The list and Prev / Next keep working, and the setting is remembered on that device.</li>
+    <li><strong>A pencil on the video.</strong> While YouTube&rsquo;s controls are showing, a small pencil in the top-right corner starts drawing, so you don&rsquo;t need the panel or a key.</li>
     <li><strong>Draw on the video.</strong> Press <kbd>Alt</kbd> + <kbd>A</kbd> (or <strong>Draw on video</strong> in the panel), then drag to draw an arrow, circle or box. Each stays on screen for a few seconds, like a note, and goes into your share link. <kbd>Esc</kbd> when you are done. Keys <kbd>1</kbd> to <kbd>4</kbd> pick Arrow, Circle, Box or Erase. <strong>Undo</strong> in the draw bar (or <kbd>Ctrl</kbd> + <kbd>Z</kbd>) takes back your last shape or brings back one you erased. Share links with drawings need this version to show them on YouTube; the viewer page shows them to everyone.</li>
     <li><strong>Export and Import notes.</strong> Two buttons at the bottom of the panel save all your notes to a file and add them back on another computer, or after a reinstall. Importing never overwrites: notes already there are skipped.</li>
     <li><strong>Lighter on your computer.</strong> Film Room no longer checks every frame of every YouTube page. It checks a few times a second, and only goes frame by frame while a note is on screen.</li>

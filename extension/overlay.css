@@ -1,4 +1,4 @@
-/* Film Room v0.9b: one look.
+/* Film Room v0.9c: one look.
    Dark glass over the video, one accent (optic yellow-green) for the things you press,
    and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
    Everything on the video sizes in em, so it scales with the picture. */
@@ -1201,3 +1201,97 @@ html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
   bottom: 6%;
 }
 #fr-overlay.fr-drawing #fr-toast { bottom: 18%; }
+
+/* ---------- 0.9c: shape labels, show/hide switches, the pencil, shape rows ---------- */
+#fr-overlay.fr-hide-notes #fr-stack,
+#fr-overlay.fr-hide-notes #fr-free { display: none; }
+#fr-overlay.fr-hide-shapes #fr-shapes,
+#fr-overlay.fr-hide-shapes #fr-shapelabels { display: none; }
+
+#fr-shapelabels {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+}
+#fr-shapelabels .fr-shlabel {
+  position: absolute;
+  display: none;
+  max-width: 42%;
+  padding: 0.3em 0.7em;
+  border-radius: 0.8em;
+  background: var(--fr-surface);
+  color: var(--fr-text);
+  font-size: 1em;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  box-shadow: inset 0 0 0 1.5px #ffd23f, 0 0.3em 0.9em rgba(0, 0, 0, 0.4);
+  margin: 0.35em;
+}
+#fr-shapelabels .fr-shlabel.fr-sh-shared { box-shadow: inset 0 0 0 1.5px #7fd4ff, 0 0.3em 0.9em rgba(0, 0, 0, 0.4); }
+#fr-shapelabels .fr-shlabel.fr-on { display: block; }
+#fr-overlay.fr-drawing #fr-shapelabels .fr-shlabel:not(.fr-sh-shared) { pointer-events: auto; cursor: text; }
+
+#fr-labelinput {
+  position: absolute;
+  z-index: 6;
+  width: 38%;
+  box-sizing: border-box;
+  margin: 0.35em;
+  padding: 0.35em 0.7em;
+  font: inherit;
+  font-weight: 600;
+  color: var(--fr-text);
+  background: rgba(14, 15, 19, 0.94);
+  border: 0;
+  border-radius: 0.8em;
+  box-shadow: inset 0 0 0 2px #ffd23f, 0 0.3em 0.9em rgba(0, 0, 0, 0.45);
+  outline: none;
+  pointer-events: auto;
+}
+#fr-labelinput::placeholder { color: var(--fr-text2); font-weight: 400; }
+
+#fr-pencil {
+  position: absolute;
+  z-index: 4;
+  top: 3%;
+  right: 2%;
+  width: 2.6em;
+  height: 2.6em;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(14, 15, 19, 0.7);
+  box-shadow: inset 0 0 0 1px var(--fr-hair);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  font-size: var(--fr-ui, 14px);
+}
+#fr-pencil svg { width: 1.3em; height: 1.3em; }
+.html5-video-player:not(.ytp-autohide) #fr-overlay #fr-pencil,
+#fr-overlay #fr-pencil:focus-visible { opacity: 1; pointer-events: auto; }
+#fr-overlay #fr-pencil:hover { background: rgba(14, 15, 19, 0.92); color: #ffd23f; }
+#fr-overlay.fr-drawing #fr-pencil { display: none; }
+
+#fr-labelinput, #fr-pencil { font-family: Roboto, Arial, sans-serif; }
+
+#fr-panel .fr-panel-showrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+#fr-panel .fr-panel-showlbl { font-size: 12px; color: var(--p-text2); margin-right: auto; }
+#fr-panel .fr-panel-toggle { flex: 0 0 auto; height: 28px; padding: 0 12px; font-size: 12.5px; opacity: 0.55; }
+#fr-panel .fr-panel-toggle[aria-pressed="true"] { opacity: 1; color: #141800; background: #d8f34a; }
+
+#fr-panel .fr-pshicon { width: 1.4em; text-align: center; font-size: 15px; color: #c99a00; }
+#fr-panel .fr-pshared .fr-pshicon { color: #3b9fd6; }
+#fr-panel .fr-pnolabel { opacity: 0.6; font-style: italic; }

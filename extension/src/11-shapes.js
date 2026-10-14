@@ -25,6 +25,8 @@ function cleanShape(r) {
     type: r.type, start: round1(v[0]), end: round1(v[1]), x1: c(v[2]), y1: c(v[3]), x2: c(v[4]), y2: c(v[5]),
   };
   if (typeof r.a === 'string' && AUTHOR_RE.test(r.a)) out.a = r.a;
+  const label = typeof r.label === 'string' ? r.label.trim().slice(0, MAX_LABEL) : '';
+  if (label) out.label = label;
   return out;
 }
 
@@ -83,6 +85,10 @@ function buildShapeUI() {
   shapeLayer = svgEl('svg', { id: 'fr-shapes', width: '100%', height: '100%', preserveAspectRatio: 'none', 'aria-hidden': 'true' });
   overlay.insertBefore(shapeLayer, overlay.firstChild); // under the notes
 
+  labelLayer = document.createElement('div');
+  labelLayer.id = 'fr-shapelabels';
+  overlay.appendChild(labelLayer);
+
   drawLayer = document.createElement('div');
   drawLayer.id = 'fr-draw';
   ['pointerdown', 'pointermove', 'pointerup', 'pointercancel'].forEach((t) => drawLayer.addEventListener(t, onDrawPointer));
@@ -112,6 +118,13 @@ function buildShapeUI() {
     syncDrawBar();
   });
   drawBar.appendChild(drawSecsBtn);
+  drawLabelBtn = document.createElement('button');
+  drawLabelBtn.type = 'button';
+  drawLabelBtn.className = 'fr-tool';
+  drawLabelBtn.textContent = 'Label';
+  drawLabelBtn.title = 'On: a text box opens next to each new shape, so you can say what it points at. Click a label to change it.';
+  drawLabelBtn.addEventListener('click', (e) => { e.stopPropagation(); labelOnDraw = !labelOnDraw; syncDrawBar(); });
+  drawBar.appendChild(drawLabelBtn);
   drawUndoBtn = document.createElement('button');
   drawUndoBtn.type = 'button';
   drawUndoBtn.className = 'fr-tool';
@@ -128,7 +141,51 @@ function buildShapeUI() {
   drawBar.appendChild(done);
   ['click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'contextmenu'].forEach((t) => drawBar.addEventListener(t, stopEvent));
   overlay.appendChild(drawBar);
+
+  // A pencil on the video (while YouTube's own controls are showing) starts drawing without the panel or a key.
+  pencilBtn = document.createElement('button');
+  pencilBtn.type = 'button';
+  pencilBtn.id = 'fr-pencil';
+  pencilBtn.title = 'Draw on the video (Alt+A)';
+  pencilBtn.setAttribute('aria-label', 'Draw on the video');
+  const pic = svgEl('svg', { viewBox: '0 0 24 24', 'aria-hidden': 'true' });
+  pic.appendChild(svgEl('path', { d: 'M3 17.25V21h3.75L17.8 9.94l-3.75-3.75L3 17.25zM20.7 7.04a1 1 0 0 0 0-1.41l-2.33-2.33a1 1 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.82-1.84z', fill: 'currentColor' }));
+  pencilBtn.appendChild(pic);
+  ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'dblclick', 'contextmenu'].forEach((t) => pencilBtn.addEventListener(t, stopEvent));
+  pencilBtn.addEventListener('click', (e) => { e.stopPropagation(); toggleDraw(); });
+  overlay.appendChild(pencilBtn);
   syncDrawBar();
+  applyShowState();
+}
+
+// ---- show / hide on the video (display only: the list, Prev and Next keep working) ----
+function applyShowState() {
+  if (overlay) {
+    overlay.classList.toggle('fr-hide-notes', !showNotes);
+    overlay.classList.toggle('fr-hide-shapes', !showShapes);
+  }
+  if (panelShowBtns) {
+    panelShowBtns.notes.setAttribute('aria-pressed', String(showNotes));
+    panelShowBtns.shapes.setAttribute('aria-pressed', String(showShapes));
+  }
+}
+
+function setShow(which, on) {
+  if (which === 'notes') showNotes = on;
+  else showShapes = on;
+  saveSettings();
+  applyShowState();
+  toast((which === 'notes' ? 'Notes' : 'Shapes') + (on ? ' shown on the video.' : ' hidden on the video. Alt+H brings back everything.'), 2500);
+}
+
+// Alt+H: everything off (the plain video), or everything back on.
+function toggleMarkup() {
+  const on = !(showNotes || showShapes);
+  showNotes = on;
+  showShapes = on;
+  saveSettings();
+  applyShowState();
+  toast(on ? 'Notes and shapes shown on the video.' : 'Video shown plain. Alt+H brings the notes and shapes back.', 2500);
 }
 
 function renderShapes() {
@@ -136,17 +193,21 @@ function renderShapes() {
   const W = overlay.clientWidth || parseFloat(overlay.style.width) || 0;
   const H = overlay.clientHeight || parseFloat(overlay.style.height) || 0;
   shapeLayer.textContent = '';
+  if (labelLayer) labelLayer.textContent = '';
   shapeEls = [];
+  labelEls = [];
   viewShapes = [];
-  if (!W || !H) return;
-  shapeLayer.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   shapes.forEach((s) => viewShapes.push({ s: s, shared: false }));
   sharedShapes.forEach((s) => viewShapes.push({ s: s, shared: true }));
+  viewShapes.sort((a, b) => a.s.start - b.s.start);
+  if (!W || !H) return;
+  shapeLayer.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
   viewShapes.forEach((v) => {
     const g = shapeGroup(v.s, W, H, v.shared);
     g._on = false;
     shapeLayer.appendChild(g);
     shapeEls.push(g);
+    labelEls.push(v.s.label && !(labelFor && labelFor.id === v.s.id) ? makeLabelPill(v) : null);
   });
   lastShapeKey = '';
   if (draftEl) { draftEl = null; }
@@ -165,9 +226,157 @@ function updateShapes(t) {
     if (g && g._on !== on) {
       g._on = on;
       g.classList.toggle('fr-on', on);
+      if (labelEls[i]) labelEls[i].classList.toggle('fr-on', on);
+      if (panelShapeRows[i]) panelShapeRows[i].classList.toggle('fr-on', on);
     }
   }
   return { active: active, soon: soon };
+}
+
+// ---- labels ----
+// Where a shape's label sits (percent of the picture): under a circle or box (above it near the bottom edge),
+// and beyond the tail of an arrow, away from the head.
+function labelAnchor(sh) {
+  const cx = (sh.x1 + sh.x2) / 2;
+  const lo = Math.min(sh.y1, sh.y2);
+  const hi = Math.max(sh.y1, sh.y2);
+  if (sh.type === 'arrow') {
+    const dx = sh.x2 - sh.x1;
+    const dy = sh.y2 - sh.y1;
+    if (Math.abs(dx) * 0.5625 > Math.abs(dy)) { // mostly sideways
+      return dx > 0 ? { x: sh.x1, y: sh.y1, tx: '-100%', ty: '-50%' } : { x: sh.x1, y: sh.y1, tx: '0', ty: '-50%' };
+    }
+    return dy > 0 ? { x: clampNum(sh.x1, 14, 86), y: sh.y1, tx: '-50%', ty: '-100%' } : { x: clampNum(sh.x1, 14, 86), y: sh.y1, tx: '-50%', ty: '0' };
+  }
+  return hi > 86 ? { x: clampNum(cx, 14, 86), y: lo, tx: '-50%', ty: '-100%' } : { x: clampNum(cx, 14, 86), y: hi, tx: '-50%', ty: '0' };
+}
+
+function placeAt(el, sh) {
+  const a = labelAnchor(sh);
+  el.style.left = a.x + '%';
+  el.style.top = a.y + '%';
+  el.style.transform = 'translate(' + a.tx + ',' + a.ty + ')';
+}
+
+function makeLabelPill(v) {
+  const el = document.createElement('div');
+  el.className = 'fr-shlabel' + (v.shared ? ' fr-sh-shared' : '');
+  el.textContent = v.s.label; // textContent, never innerHTML
+  placeAt(el, v.s);
+  if (!v.shared) {
+    el.title = 'Click to change this label';
+    el.addEventListener('click', (e) => { e.stopPropagation(); if (drawMode) openLabelEditor(v.s); });
+  }
+  ['mousedown', 'mouseup', 'pointerdown', 'pointerup', 'dblclick', 'contextmenu'].forEach((t) => el.addEventListener(t, stopEvent));
+  labelLayer.appendChild(el);
+  return el;
+}
+
+function closeLabelEditor() {
+  const inp = labelInput;
+  labelInput = null;
+  labelFor = null;
+  if (inp && inp.parentNode) inp.remove();
+}
+
+// A small text box beside the shape. Enter or clicking away saves it, Esc leaves the label as it was.
+function openLabelEditor(sh) {
+  if (!overlay || !sh) return;
+  if (labelInput) closeLabelEditor();
+  labelFor = sh;
+  const inp = document.createElement('input');
+  inp.type = 'text';
+  inp.id = 'fr-labelinput';
+  inp.maxLength = MAX_LABEL;
+  inp.value = sh.label || '';
+  inp.placeholder = 'Label (Enter to save)';
+  placeAt(inp, sh);
+  let done = false;
+  const finish = (save) => {
+    if (done) return;
+    done = true;
+    const text = inp.value.trim().slice(0, MAX_LABEL);
+    closeLabelEditor();
+    if (save && text !== (sh.label || '')) {
+      if (text) sh.label = text;
+      else delete sh.label;
+      persistShapes();
+    }
+    renderShapes();
+    const v = getVideo();
+    if (v) updateShapes(v.currentTime);
+    syncShapePanel();
+  };
+  inp.addEventListener('keydown', (e) => {
+    e.stopPropagation(); // YouTube must not see these keys (space pauses, k plays, numbers seek)
+    if (e.key === 'Enter') { e.preventDefault(); finish(true); }
+    else if (e.key === 'Escape') { e.preventDefault(); finish(false); }
+  });
+  ['keyup', 'keypress', 'click', 'dblclick', 'mousedown', 'mouseup', 'pointerdown', 'pointerup', 'contextmenu'].forEach((t) => inp.addEventListener(t, stopEvent));
+  inp.addEventListener('blur', () => finish(true));
+  overlay.appendChild(inp);
+  labelInput = inp;
+  renderShapes(); // the pill for this shape steps aside while its box is open
+  const v = getVideo();
+  if (v) updateShapes(v.currentTime);
+  inp.focus();
+  inp.select();
+}
+
+// The panel row for a shape: time, what it is, its label; click to jump, pencil to edit the label, x to delete.
+function shapeRow(v, i) {
+  const s = v.s;
+  const row = document.createElement('div');
+  row.className = 'fr-prow fr-pshape' + (v.shared ? ' fr-pshared' : '');
+  row.title = 'Jump to this shape';
+  const time = document.createElement('span');
+  time.className = 'fr-ptime';
+  time.textContent = fmt(s.start);
+  const icon = document.createElement('span');
+  icon.className = 'fr-pshicon';
+  icon.textContent = s.type === 'arrow' ? '\u2197' : s.type === 'circle' ? '\u25EF' : '\u25AD';
+  const txt = document.createElement('span');
+  txt.className = 'fr-ptext' + (s.label ? '' : ' fr-pnolabel');
+  txt.textContent = s.label || s.type.charAt(0).toUpperCase() + s.type.slice(1);
+  row.appendChild(time);
+  row.appendChild(icon);
+  row.appendChild(txt);
+  if (v.shared) {
+    const who = document.createElement('span');
+    who.className = 'fr-pwho';
+    who.appendChild(avatarEl());
+    who.appendChild(document.createTextNode('Shared'));
+    row.appendChild(who);
+  } else {
+    const acts = document.createElement('span');
+    acts.className = 'fr-pacts';
+    const edit = document.createElement('button');
+    edit.type = 'button';
+    edit.className = 'fr-pedit';
+    edit.textContent = '\u270E';
+    edit.title = 'Add or change the label';
+    edit.addEventListener('click', (e) => {
+      e.stopPropagation();
+      seekTo(s.start);
+      enterDraw();
+      setTimeout(() => openLabelEditor(s), 200);
+    });
+    const del = document.createElement('button');
+    del.type = 'button';
+    del.className = 'fr-pdel';
+    del.textContent = '\u00d7';
+    del.title = 'Delete this shape (you can undo it for a few seconds)';
+    del.addEventListener('click', (e) => {
+      e.stopPropagation();
+      removeShapes([s.id], 'Shape deleted.');
+    });
+    acts.appendChild(edit);
+    acts.appendChild(del);
+    row.appendChild(acts);
+  }
+  row.addEventListener('mousedown', (e) => e.preventDefault());
+  row.addEventListener('click', () => seekTo(s.start));
+  return row;
 }
 
 // ---- draw mode ----
@@ -181,6 +390,11 @@ function enterDraw() {
   if (!v || !overlay || !shapeLayer || drawMode) return;
   if (captureOpen) closeCapture(false);
   dismissFirstRun();
+  if (!showShapes) { // you can't draw on what you can't see
+    showShapes = true;
+    saveSettings();
+    applyShowState();
+  }
   drawMode = true;
   drawPausedByUs = !v.paused;
   if (!v.paused) v.pause();
@@ -195,6 +409,7 @@ function exitDraw(resume) {
   drawMode = false;
   drawStart = null;
   clearDraft();
+  closeLabelEditor();
   if (overlay) overlay.classList.remove('fr-drawing');
   const v = getVideo();
   if (resume && drawPausedByUs && v && v.paused) {
@@ -216,6 +431,7 @@ function syncDrawBar() {
   drawToolBtns.forEach((b, i) => b.classList.toggle('fr-sel', names[i] === drawTool));
   if (drawSecsBtn) drawSecsBtn.textContent = shapeSecs + ' s';
   if (drawUndoBtn) drawUndoBtn.disabled = !shapeHistory.length;
+  if (drawLabelBtn) drawLabelBtn.classList.toggle('fr-sel', labelOnDraw);
   if (drawLayer) drawLayer.classList.toggle('fr-erase', drawTool === 'erase');
 }
 
@@ -283,6 +499,7 @@ function addShape(type, a, b) {
   renderShapes();
   updateShapes(v.currentTime);
   syncShapePanel();
+  if (labelOnDraw) openLabelEditor(sh);
 }
 
 // Erase: the shape you click on (only your own; shapes shared with you are read-only).
@@ -371,5 +588,5 @@ function syncShapePanel() {
     panelClearShapesBtn.style.display = shapes.length ? '' : 'none';
     panelClearShapesBtn.textContent = 'Clear shapes (' + shapes.length + ')';
   }
-  if (panelEl) updatePanelCount();
+  if (panelEl) refreshPanel();
 }

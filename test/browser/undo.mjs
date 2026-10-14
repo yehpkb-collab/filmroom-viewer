@@ -21,6 +21,7 @@ await page.waitForSelector('#fr-shapes', { state: 'attached', timeout: 10000 });
 await page.waitForTimeout(500);
 const out = {};
 await page.keyboard.press('Alt+KeyA'); await page.waitForTimeout(300);
+await page.evaluate(() => [...document.querySelectorAll('#fr-drawbar .fr-tool')].find((b) => b.textContent === 'Label').click());
 const box = await page.evaluate(() => { const r = document.getElementById('fr-draw').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
 const drag = async (x1, y1, x2, y2) => { await page.mouse.move(box.x + box.w * x1, box.y + box.h * y1); await page.mouse.down(); await page.mouse.move(box.x + box.w * x2, box.y + box.h * y2, { steps: 6 }); await page.mouse.up(); };
 const k = 'fr_shapes:' + VID; const n = async () => ((await store())[k] || []).length;

@@ -86,3 +86,4 @@ const SHAPE_SECS_DEFAULT = 4;
 const SHAPE_MIN_PX = 10;                        // a drag shorter than this is a click, not a shape
 const MAX_SHAPES = 100;                         // per video (and per share link)
 const IMPORT_MAX_SHAPES = 100;
+const MAX_LABEL = 100;                          // characters in a shape's label

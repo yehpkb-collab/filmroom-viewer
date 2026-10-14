@@ -51,6 +51,10 @@
   #shapes .shape { display: none; }
   #shapes .shape.on { display: inline; }
   #shapes .sh-back, #shapes .sh-main { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  .sh-labels { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 2; overflow: hidden; }
+  .sh-label { position: absolute; display: none; max-width: 42%; margin: 4px; padding: 5px 11px; border-radius: 10px; background: rgba(14, 15, 19, 0.88); color: #f5f6f8; font-size: clamp(13px, 2vw, 22px); font-weight: 600; line-height: 1.3; overflow-wrap: anywhere; box-shadow: inset 0 0 0 1.5px #ffd23f; }
+  .sh-label.on { display: block; }
+  button.li-shape .li-icon { flex: none; width: 1.4em; text-align: center; color: #b58900; }
   #shapes .sh-back { stroke: rgba(0, 0, 0, 0.55); }
   #shapes .sh-main { stroke: #ffd23f; }
   .vo-item.emoji-only .vo-emoji { font-size: 2.2em; }
@@ -63,9 +67,9 @@
   .player-wrap:-webkit-full-screen { width: 100vw; height: 100vh; aspect-ratio: auto; border-radius: 0; }
   .player-wrap:fullscreen .vo { bottom: 12%; width: min(80%, 900px); }
   .player-wrap:-webkit-full-screen .vo { bottom: 12%; width: min(80%, 900px); }
-  .vo-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
-  .vo-ctl button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
-  .vo-ctl button[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
+  .vo-ctl, .sh-ctl { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+  .vo-ctl button, .sh-ctl button { font: inherit; color: var(--fg); background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 3px 10px; cursor: pointer; }
+  .vo-ctl button[aria-pressed="true"], .sh-ctl button[aria-pressed="true"] { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); font-weight: 600; }
   button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   #strip { margin-top: 12px; min-height: 76px; padding: 12px 14px; background: var(--card); border-left: 4px solid var(--line); border-radius: 0 8px 8px 0; }
   #strip.live { border-left-color: var(--accent); }
@@ -149,6 +153,11 @@
         <button type="button" data-vo="on" aria-pressed="true">On</button>
         <button type="button" data-vo="off" aria-pressed="false">Off</button>
       </div>
+      <div class="sh-ctl" role="group" aria-label="Shapes on the video">
+        <span>Shapes on video</span>
+        <button type="button" data-sh="on" aria-pressed="true">On</button>
+        <button type="button" data-sh="off" aria-pressed="false">Off</button>
+      </div>
       <div class="notes-ctl" role="group" aria-label="Notes position">
         <span>Notes</span>
         <button type="button" data-notes="below" aria-pressed="false">Below</button>
@@ -156,7 +165,7 @@
       </div>
     </div>
     <div class="stage">
-      <div class="player-wrap" id="wrap"><div id="player"></div><svg id="shapes" aria-hidden="true" preserveAspectRatio="none"></svg><div class="vo" id="vo" aria-hidden="true"></div></div>
+      <div class="player-wrap" id="wrap"><div id="player"></div><svg id="shapes" aria-hidden="true" preserveAspectRatio="none"></svg><div class="sh-labels" id="shlabels" aria-hidden="true"></div><div class="vo" id="vo" aria-hidden="true"></div></div>
       <div class="notes-cell">
         <div class="notes-col">
           <div id="strip" aria-live="polite"></div>
@@ -185,6 +194,7 @@
   var MAX_NOTES = 300;
   var MAX_TEXT = 300;
   var MAX_SHAPES = 100;
+  var MAX_LABEL = 100;
   var SHAPE_TYPES = ['arrow', 'circle', 'box'];
   // The default emoji set (same as the extension) and the meaning colour for each
   var EMOJI_KIND = {
@@ -254,7 +264,8 @@
         if (v[0] < 0 || v[0] > 1000000 || v[1] <= v[0] || v[1] - v[0] > 3600) return;
         if (v[2] !== 0 && v[2] !== 1 && v[2] !== 2) return;
         var c = function (x) { return Math.min(100, Math.max(0, x)); };
-        shapes.push({ start: v[0], end: v[1], type: SHAPE_TYPES[v[2]], x1: c(v[3]), y1: c(v[4]), x2: c(v[5]), y2: c(v[6]) });
+        var lab = typeof r[7] === 'string' ? r[7].trim().slice(0, MAX_LABEL) : '';
+        shapes.push({ start: v[0], end: v[1], type: SHAPE_TYPES[v[2]], x1: c(v[3]), y1: c(v[4]), x2: c(v[5]), y2: c(v[6]), label: lab });
       });
     }
     if (!notes.length && !shapes.length) return null;
@@ -307,8 +318,25 @@
   function buildList() {
     var list = $('list');
     list.textContent = '';
-    data.notes.forEach(function (n, i) {
+    var entries = [];
+    data.notes.forEach(function (n, i) { entries.push({ t: n.start, note: i }); });
+    data.shapes.forEach(function (s, i) { entries.push({ t: s.start, shape: i }); });
+    entries.sort(function (a, b) { return a.t - b.t; }); // stable: a note stays ahead of a shape at the same moment
+    entries.forEach(function (en) {
       var li = document.createElement('li');
+      if (en.shape !== undefined) {
+        var sh = data.shapes[en.shape], sb = el('button', 'li-shape');
+        sb.type = 'button';
+        sb.id = 'srow' + en.shape;
+        sb.appendChild(el('span', 'li-time', fmt(sh.start)));
+        sb.appendChild(el('span', 'li-icon', sh.type === 'arrow' ? '\u2197' : sh.type === 'circle' ? '\u25EF' : '\u25AD'));
+        sb.appendChild(el('span', 'li-text', sh.label || sh.type.charAt(0).toUpperCase() + sh.type.slice(1)));
+        sb.addEventListener('click', function () { jumpTo(sh.start); });
+        li.appendChild(sb);
+        list.appendChild(li);
+        return;
+      }
+      var n = data.notes[en.note], i = en.note;
       var b = el('button');
       b.type = 'button';
       b.id = 'row' + i;
@@ -323,7 +351,15 @@
   }
 
   // ---------- notes on the video ----------
-  var VO_KEY = 'filmroom_viewer_overlay', voOn = true;
+  var VO_KEY = 'filmroom_viewer_overlay', voOn = true, SH_KEY = 'filmroom_viewer_shapes', shOn = true;
+  function loadSh() { try { shOn = localStorage.getItem(SH_KEY) !== '0'; } catch (e) { shOn = true; } }
+  function setSh(on, remember) {
+    shOn = !!on;
+    var btns = document.querySelectorAll('.sh-ctl button');
+    for (var i = 0; i < btns.length; i++) btns[i].setAttribute('aria-pressed', String((btns[i].getAttribute('data-sh') === 'on') === shOn));
+    if (remember) { try { localStorage.setItem(SH_KEY, shOn ? '1' : '0'); } catch (e) { /* ignore */ } }
+    updateShapes(lastT);
+  }
   function loadVo() { try { voOn = localStorage.getItem(VO_KEY) !== '0'; } catch (e) { voOn = true; } }
   function setVo(on, remember) {
     voOn = !!on;
@@ -346,7 +382,17 @@
     });
   }
   // ---------- shapes on the video ----------
-  var SVGNS = 'http://www.w3.org/2000/svg', shapeEls = [];
+  var SVGNS = 'http://www.w3.org/2000/svg', shapeEls = [], labelEls = [];
+  function labelAnchor(sh) {
+    var cx = (sh.x1 + sh.x2) / 2, lo = Math.min(sh.y1, sh.y2), hi = Math.max(sh.y1, sh.y2);
+    var cl = function (v, a, b) { return Math.min(b, Math.max(a, v)); };
+    if (sh.type === 'arrow') {
+      var dx = sh.x2 - sh.x1, dy = sh.y2 - sh.y1;
+      if (Math.abs(dx) * 0.5625 > Math.abs(dy)) return dx > 0 ? { x: sh.x1, y: sh.y1, tx: '-100%', ty: '-50%' } : { x: sh.x1, y: sh.y1, tx: '0', ty: '-50%' };
+      return dy > 0 ? { x: cl(sh.x1, 14, 86), y: sh.y1, tx: '-50%', ty: '-100%' } : { x: cl(sh.x1, 14, 86), y: sh.y1, tx: '-50%', ty: '0' };
+    }
+    return hi > 86 ? { x: cl(cx, 14, 86), y: lo, tx: '-50%', ty: '-100%' } : { x: cl(cx, 14, 86), y: hi, tx: '-50%', ty: '0' };
+  }
   function svgEl(tag, attrs) {
     var e = document.createElementNS(SVGNS, tag);
     for (var k in attrs) e.setAttribute(k, attrs[k]);
@@ -364,9 +410,11 @@
       'M' + hx(0.5) + ' ' + hy(0.5) + 'L' + X2.toFixed(1) + ' ' + Y2.toFixed(1) + 'L' + hx(-0.5) + ' ' + hy(-0.5) });
   }
   function renderShapes() {
-    var svg = $('shapes');
+    var svg = $('shapes'), lay = $('shlabels');
     svg.textContent = '';
+    lay.textContent = '';
     shapeEls = [];
+    labelEls = [];
     if (!data || !data.shapes.length) return;
     var r = $('wrap').getBoundingClientRect(), W = r.width, H = r.height;
     if (!W || !H) return;
@@ -380,6 +428,12 @@
       g.appendChild(back); g.appendChild(main);
       svg.appendChild(g);
       shapeEls.push(g);
+      if (sh.label) {
+        var pill = el('div', 'sh-label', sh.label), a = labelAnchor(sh);
+        pill.style.left = a.x + '%'; pill.style.top = a.y + '%'; pill.style.transform = 'translate(' + a.tx + ',' + a.ty + ')';
+        lay.appendChild(pill);
+        labelEls.push(pill);
+      } else labelEls.push(null);
     });
     updateShapes(lastT);
   }
@@ -387,8 +441,12 @@
   function updateShapes(t) {
     lastT = t;
     data.shapes.forEach(function (s, i) {
+      var live = t >= s.start - 0.15 && t < s.end, show = shOn && live;
       var g = shapeEls[i];
-      if (g) g.setAttribute('class', 'shape' + (voOn && t >= s.start - 0.15 && t < s.end ? ' on' : ''));
+      if (g) g.setAttribute('class', 'shape' + (show ? ' on' : ''));
+      if (labelEls[i]) labelEls[i].className = 'sh-label' + (show ? ' on' : '');
+      var row = $('srow' + i);
+      if (row) row.className = 'li-shape' + (live ? ' on' : '');
     });
   }
   function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
@@ -528,6 +586,10 @@
     if (canFs()) { $('fs').hidden = false; $('fs').addEventListener('click', toggleFs); }
     loadVo();
     setVo(voOn, false);
+    loadSh();
+    setSh(shOn, false);
+    var sb = document.querySelectorAll('.sh-ctl button');
+    for (var z = 0; z < sb.length; z++) sb[z].addEventListener('click', function () { setSh(this.getAttribute('data-sh') === 'on', true); });
     renderShapes();
     if (typeof ResizeObserver === 'function') new ResizeObserver(renderShapes).observe($('wrap'));
     else window.addEventListener('resize', renderShapes);

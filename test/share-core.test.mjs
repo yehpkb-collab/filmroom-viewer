@@ -140,3 +140,11 @@ test('a drawings-only link can be created and opened', async () => {
   assert.equal(await (await handle(get(id), deps)).text(), p);
   assert.equal((await listStats(deps.stats))[0].notes, 0);
 });
+
+test('shape labels: a text label up to 100 characters is allowed', () => {
+  assert.ok(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'Watch the split step']] })));
+  assert.ok(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'x'.repeat(100)]] })));
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'x'.repeat(101)]] })), false, 'label too long');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 7]] })), false, 'label must be text');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'a', 'b']] })), false, 'too many columns');
+});

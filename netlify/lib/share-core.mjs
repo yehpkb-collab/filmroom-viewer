@@ -25,6 +25,7 @@ const MAX_PAYLOAD_CHARS = 60000; // same ceiling the extension and viewer use fo
 const MAX_BYTES = 262144;
 const MAX_NOTES = 300;
 const MAX_SHAPES = 100;
+const MAX_LABEL = 100;
 const MAX_TEXT = 1000; // clients trim to 300; this is just a sanity cap
 
 const CORS = {
@@ -63,13 +64,14 @@ export function parsePayload(payload) {
   if (obj.a !== undefined && (typeof obj.a !== 'string' || !AUTHOR_RE.test(obj.a))) return null;
   if (obj.v !== 1 || typeof obj.id !== 'string' || !YT_ID_RE.test(obj.id)) return null;
   if (obj.t !== undefined && (typeof obj.t !== 'string' || obj.t.length > 300)) return null;
-  // Shapes (optional): [start, end, type 0-2, x1, y1, x2, y2] rows, coordinates in percent of the picture.
+  // Shapes (optional): [start, end, type 0-2, x1, y1, x2, y2(, label)] rows, coordinates in percent of the picture.
   if (obj.s !== undefined) {
     if (!Array.isArray(obj.s) || obj.s.length < 1 || obj.s.length > MAX_SHAPES) return null;
     const shapesOk = obj.s.every((row) =>
-      Array.isArray(row) && row.length === 7 && row.every(Number.isFinite) &&
+      Array.isArray(row) && (row.length === 7 || row.length === 8) && row.slice(0, 7).every(Number.isFinite) &&
       row[0] >= 0 && row[1] > row[0] && row[2] >= 0 && row[2] <= 2 && Number.isInteger(row[2]) &&
-      row.slice(3).every((c) => c >= 0 && c <= 100));
+      row.slice(3, 7).every((c) => c >= 0 && c <= 100) &&
+      (row.length === 7 || (typeof row[7] === 'string' && row[7].length <= MAX_LABEL)));
     if (!shapesOk) return null;
   }
   const minNotes = obj.s ? 0 : 1; // a link may carry only drawings

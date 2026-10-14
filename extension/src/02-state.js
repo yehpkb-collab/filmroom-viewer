@@ -93,3 +93,14 @@ let draftEl = null;
 let drawPausedByUs = false;
 let panelDrawBtn = null;
 let panelClearShapesBtn = null;
+let showNotes = true;      // show your notes and shared notes on the video (remembered; the list still works when off)
+let showShapes = true;     // same for shapes and their labels
+let labelOnDraw = true;    // open the label box right after drawing a shape
+let labelLayer = null;     // holds the label pills
+let labelEls = [];         // pill per viewShapes entry (null = no label)
+let labelInput = null;     // the label box while one is open
+let labelFor = null;       // the shape it belongs to
+let panelShapeRows = [];   // panel row per viewShapes entry
+let panelShowBtns = null;  // { notes, shapes } buttons in the panel
+let drawLabelBtn = null;
+let pencilBtn = null;

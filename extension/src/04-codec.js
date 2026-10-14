@@ -6,7 +6,7 @@
 // A link is  SHARE_BASE + '#' + payload.  The part after '#' never goes to any server.
 // payload = 'z' + base64url(deflate-raw(JSON))   or   'j' + base64url(JSON) as a fallback.
 // JSON = { v:1, id:<video id>, t:<title>, n:[[start, end, text(, emoji)], ...], a:<anonymous author id>,
-//          s:[[start, end, type 0-2, x1, y1, x2, y2], ...] (optional: shapes; older viewers ignore it) }
+//          s:[[start, end, type 0-2, x1, y1, x2, y2(, label)], ...] (optional: shapes; older viewers ignore it) }
 // ---------------------------------------------------------------
 function toB64Url(bytes) {
   let s = '';
@@ -73,7 +73,11 @@ async function encodeShare(videoId, title, noteList, author, shapeList) {
     }),
   };
   if (shapeList && shapeList.length) {
-    obj.s = shapeList.slice(0, MAX_SHAPES).map((s) => [round1(s.start), round1(s.end), SHAPE_TYPES.indexOf(s.type), round1(s.x1), round1(s.y1), round1(s.x2), round1(s.y2)]);
+    obj.s = shapeList.slice(0, MAX_SHAPES).map((s) => {
+      const row = [round1(s.start), round1(s.end), SHAPE_TYPES.indexOf(s.type), round1(s.x1), round1(s.y1), round1(s.x2), round1(s.y2)];
+      if (s.label) row.push(s.label);
+      return row;
+    });
   }
   const raw = new TextEncoder().encode(JSON.stringify(obj));
   if (typeof CompressionStream === 'function') {
@@ -93,7 +97,7 @@ function sanitizeShare(obj) {
   if (Array.isArray(obj.s)) {
     obj.s.slice(0, MAX_SHAPES).forEach((r) => {
       if (!Array.isArray(r) || r.length < 7) return;
-      const sh = cleanShape({ type: SHAPE_TYPES[r[2]], start: r[0], end: r[1], x1: r[3], y1: r[4], x2: r[5], y2: r[6], id: newId() });
+      const sh = cleanShape({ type: SHAPE_TYPES[r[2]], start: r[0], end: r[1], x1: r[3], y1: r[4], x2: r[5], y2: r[6], label: r[7], id: newId() });
       if (sh) drawn.push(sh);
     });
   }

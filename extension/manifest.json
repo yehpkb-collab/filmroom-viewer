@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Film Room v0.9b",
-  "version": "0.9.2",
-  "version_name": "0.9b",
-  "description": "Timed notes, quick bookmarks and drawn shapes on YouTube videos, with share links. Alt+B bookmark, Alt+N note, Alt+A draw, Alt+S share.",
+  "name": "Film Room v0.9c",
+  "version": "0.9.3",
+  "version_name": "0.9c",
+  "description": "Timed notes, quick bookmarks and labeled shapes on YouTube videos, with share links. Alt+B bookmark, Alt+N note, Alt+A draw, Alt+H hide, Alt+S share.",
   "permissions": [
     "storage"
   ],

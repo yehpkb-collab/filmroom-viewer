@@ -6,7 +6,7 @@
 // On/off is remembered (Alt+P, or the buttons). It only appears when the video has notes.
 // ---------------------------------------------------------------
 function saveSettings() {
-  save(SETTINGS_KEY, { panel: panelEnabled, bookmark: bookmarkEmoji, lead: leadIn });
+  save(SETTINGS_KEY, { panel: panelEnabled, bookmark: bookmarkEmoji, lead: leadIn, notes: showNotes, shapes: showShapes });
 }
 
 function loadSettings() {
@@ -17,6 +17,9 @@ function loadSettings() {
       if (st && typeof st.panel === 'boolean') panelEnabled = st.panel;
       bookmarkEmoji = cleanEmoji(st && st.bookmark) || BOOKMARK_EMOJI;
       leadIn = cleanLead(st && st.lead);
+      showNotes = !(st && st.notes === false);
+      showShapes = !(st && st.shapes === false);
+      applyShowState();
       syncBookmarkButtons();
       renderPanelBm();
       settingsLoaded = true;
@@ -47,6 +50,13 @@ function watchSettings() {
       if (ld !== leadIn) { // the lead-in was changed in another tab
         leadIn = ld;
         renderPanelBm();
+      }
+      const sn = !(v && v.notes === false);
+      const ss = !(v && v.shapes === false);
+      if (sn !== showNotes || ss !== showShapes) { // changed in another tab
+        showNotes = sn;
+        showShapes = ss;
+        applyShowState();
       }
       const on = !(v && v.panel === false);
       if (on === panelEnabled) return; // our own change, already handled
@@ -142,6 +152,23 @@ function buildPanel() {
   shapeRow.appendChild(panelDrawBtn);
   shapeRow.appendChild(panelClearShapesBtn);
   panelEl.appendChild(shapeRow);
+
+  const showRow = document.createElement('div');
+  showRow.className = 'fr-panel-showrow';
+  const showLbl = document.createElement('span');
+  showLbl.className = 'fr-panel-showlbl';
+  showLbl.textContent = 'On video';
+  showRow.appendChild(showLbl);
+  panelShowBtns = {
+    notes: panelButton('Notes', 'fr-panel-sbtn fr-panel-toggle', () => setShow('notes', !showNotes)),
+    shapes: panelButton('Shapes', 'fr-panel-sbtn fr-panel-toggle', () => setShow('shapes', !showShapes)),
+  };
+  panelShowBtns.notes.title = 'Show or hide your notes on the video (Alt+H hides or shows both). The list below keeps working.';
+  panelShowBtns.shapes.title = 'Show or hide the arrows, circles and boxes on the video (Alt+H hides or shows both).';
+  showRow.appendChild(panelShowBtns.notes);
+  showRow.appendChild(panelShowBtns.shapes);
+  panelEl.appendChild(showRow);
+  applyShowState();
 
   panelListEl = document.createElement('div');
   panelListEl.className = 'fr-panel-list';
@@ -278,6 +305,7 @@ function refreshPanel() {
   if (!panelEl) return;
   const keepScroll = panelListEl.scrollTop; // a rebuild must not throw you back to the top
   panelListEl.textContent = '';
+  const items = []; // note rows and shape rows, mixed in time order
   panelRows = viewNotes.map((n) => {
     const row = document.createElement('div');
     const info = emojiInfo(n.emoji);
@@ -333,10 +361,18 @@ function refreshPanel() {
     }
     row.addEventListener('mousedown', (e) => e.preventDefault());
     row.addEventListener('click', () => seekTo(n.start));
-    panelListEl.appendChild(row);
+    items.push({ t: n.start, el: row });
     return row;
   });
-  if (!viewNotes.length) { // nothing yet: say how to start (the panel is here so + Note and + Bookmark are too)
+  panelShapeRows = viewShapes.map((v, i) => {
+    const row = shapeRow(v, i);
+    items.push({ t: v.s.start, el: row });
+    return row;
+  });
+  items.sort((a, b) => a.t - b.t); // stable: notes stay ahead of a shape at the same moment
+  items.forEach((it) => panelListEl.appendChild(it.el));
+  panelShapeRows.forEach((row, i) => row.classList.toggle('fr-on', !!(shapeEls[i] && shapeEls[i]._on)));
+  if (!viewNotes.length && !viewShapes.length) { // nothing yet: say how to start (the panel is here so + Note and + Bookmark are too)
     const hint = document.createElement('div');
     hint.className = 'fr-pempty';
     hint.textContent = 'No notes yet. Press Alt+N, or click + Note, to start.';
