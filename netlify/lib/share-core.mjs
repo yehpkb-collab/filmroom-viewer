@@ -24,6 +24,7 @@ const AUTHOR_RE = /^[A-Za-z0-9_-]{6,24}$/;
 const MAX_PAYLOAD_CHARS = 60000; // same ceiling the extension and viewer use for a link
 const MAX_BYTES = 262144;
 const MAX_NOTES = 300;
+const MAX_SHAPES = 100;
 const MAX_TEXT = 1000; // clients trim to 300; this is just a sanity cap
 
 const CORS = {
@@ -58,11 +59,21 @@ export function parsePayload(payload) {
     return null;
   }
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
-  if (Object.keys(obj).some((k) => k !== 'v' && k !== 'id' && k !== 't' && k !== 'n' && k !== 'a')) return null;
+  if (Object.keys(obj).some((k) => k !== 'v' && k !== 'id' && k !== 't' && k !== 'n' && k !== 'a' && k !== 's')) return null;
   if (obj.a !== undefined && (typeof obj.a !== 'string' || !AUTHOR_RE.test(obj.a))) return null;
   if (obj.v !== 1 || typeof obj.id !== 'string' || !YT_ID_RE.test(obj.id)) return null;
   if (obj.t !== undefined && (typeof obj.t !== 'string' || obj.t.length > 300)) return null;
-  if (!Array.isArray(obj.n) || obj.n.length < 1 || obj.n.length > MAX_NOTES) return null;
+  // Shapes (optional): [start, end, type 0-2, x1, y1, x2, y2] rows, coordinates in percent of the picture.
+  if (obj.s !== undefined) {
+    if (!Array.isArray(obj.s) || obj.s.length < 1 || obj.s.length > MAX_SHAPES) return null;
+    const shapesOk = obj.s.every((row) =>
+      Array.isArray(row) && row.length === 7 && row.every(Number.isFinite) &&
+      row[0] >= 0 && row[1] > row[0] && row[2] >= 0 && row[2] <= 2 && Number.isInteger(row[2]) &&
+      row.slice(3).every((c) => c >= 0 && c <= 100));
+    if (!shapesOk) return null;
+  }
+  const minNotes = obj.s ? 0 : 1; // a link may carry only drawings
+  if (!Array.isArray(obj.n) || obj.n.length < minNotes || obj.n.length > MAX_NOTES) return null;
   const ok = obj.n.every((row) =>
     Array.isArray(row) && (row.length === 3 || row.length === 4) &&
     Number.isFinite(row[0]) && Number.isFinite(row[1]) &&
@@ -83,6 +94,7 @@ async function bump(stats, id, now, meta) {
     const rec = cur && typeof cur === 'object' ? cur : { c: now, k: 0 };
     if (meta) {
       rec.v = meta.id; rec.t = (meta.t || '').slice(0, 120); rec.n = meta.n.length;
+      rec.s = Array.isArray(meta.s) ? meta.s.length : 0;
       if (!rec.c) rec.c = now;
     } else {
       rec.k = (rec.k || 0) + 1;

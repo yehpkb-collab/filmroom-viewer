@@ -1,9 +1,9 @@
 {
   "manifest_version": 3,
-  "name": "Film Room v0.8",
-  "version": "0.8.0",
-  "version_name": "0.8",
-  "description": "Timed notes and quick bookmarks on YouTube videos, with share links. Alt+B bookmark, Alt+N note, Alt+S share.",
+  "name": "Film Room v0.9a",
+  "version": "0.9.1",
+  "version_name": "0.9a",
+  "description": "Timed notes, quick bookmarks and drawn shapes on YouTube videos, with share links. Alt+B bookmark, Alt+N note, Alt+A draw, Alt+S share.",
   "permissions": [
     "storage"
   ],
@@ -13,7 +13,19 @@
         "https://www.youtube.com/*"
       ],
       "js": [
-        "content.js"
+        "src/01-config.js",
+        "src/02-state.js",
+        "src/03-helpers.js",
+        "src/04-codec.js",
+        "src/05-storage.js",
+        "src/06-ui.js",
+        "src/07-actions.js",
+        "src/08-backup.js",
+        "src/09-firstrun.js",
+        "src/10-panel.js",
+        "src/11-shapes.js",
+        "src/12-loop.js",
+        "src/13-main.js"
       ],
       "css": [
         "overlay.css"
@@ -25,7 +37,19 @@
         "https://filmroom-viewer.netlify.app/*"
       ],
       "js": [
-        "content.js"
+        "src/01-config.js",
+        "src/02-state.js",
+        "src/03-helpers.js",
+        "src/04-codec.js",
+        "src/05-storage.js",
+        "src/06-ui.js",
+        "src/07-actions.js",
+        "src/08-backup.js",
+        "src/09-firstrun.js",
+        "src/10-panel.js",
+        "src/11-shapes.js",
+        "src/12-loop.js",
+        "src/13-main.js"
       ],
       "run_at": "document_start"
     }

@@ -1,0 +1,43 @@
+import { createRequire } from 'node:module';
+const require = createRequire(process.env.PW_MODULES || '/opt/npm-tools/node_modules/');
+const { chromium } = require('playwright');
+import fs from 'node:fs';
+const extDir = process.argv[2];
+const VID = 'dQw4w9WgXcQ';
+const clip = fs.readFileSync('' + (process.env.SMOKE_DIR || '/tmp/smoke') + '/clip.webm');
+const html = `<!doctype html><html><head><title>Stub - YouTube</title></head><body style="margin:0;background:#111"><div id="primary" style="width:640px;float:left"><div id="movie_player" style="position:relative;width:640px;height:360px"><video class="html5-main-video" src="/clip.webm" muted loop style="width:640px;height:360px"></video></div></div><div id="secondary" style="width:340px;float:left"><div id="secondary-inner"></div></div></body></html>`;
+const ctx = await chromium.launchPersistentContext('' + (process.env.SMOKE_DIR || '/tmp/smoke') + '/profile-sh' + Date.now(), {
+  executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', headless: false,
+  args: ['--headless=new', '--no-sandbox', `--disable-extensions-except=${extDir}`, `--load-extension=${extDir}`, '--autoplay-policy=no-user-gesture-required'], acceptDownloads: true });
+await ctx.route('https://www.youtube.com/**', (r) => { const u = new URL(r.request().url());
+  if (u.pathname === '/clip.webm') return r.fulfill({ status: 200, contentType: 'video/webm', body: clip, headers: { 'Accept-Ranges': 'none' } });
+  return r.fulfill({ status: 200, contentType: 'text/html', body: html }); });
+let sw = ctx.serviceWorkers()[0]; if (!sw) sw = await ctx.waitForEvent('serviceworker', { timeout: 10000 });
+const store = () => sw.evaluate(() => chrome.storage.local.get(null));
+const page = await ctx.newPage(); const errors = [];
+page.on('pageerror', (e) => errors.push(String(e))); page.on('console', (m) => { if (m.type() === 'error') errors.push(m.text()); });
+await page.goto(`https://www.youtube.com/watch?v=${VID}`);
+await page.waitForSelector('#fr-shapes', { state: 'attached', timeout: 10000 });
+await page.waitForTimeout(500);
+const out = {};
+await page.keyboard.press('Alt+KeyA'); await page.waitForTimeout(300);
+const box = await page.evaluate(() => { const r = document.getElementById('fr-draw').getBoundingClientRect(); return { x: r.x, y: r.y, w: r.width, h: r.height }; });
+const drag = async (x1, y1, x2, y2) => { await page.mouse.move(box.x + box.w * x1, box.y + box.h * y1); await page.mouse.down(); await page.mouse.move(box.x + box.w * x2, box.y + box.h * y2, { steps: 6 }); await page.mouse.up(); };
+const k = 'fr_shapes:' + VID; const n = async () => ((await store())[k] || []).length;
+await drag(0.2, 0.3, 0.5, 0.6); await drag(0.55, 0.2, 0.8, 0.5);
+out.drawn = await n();
+await page.getByRole('button', { name: 'Undo', exact: true }).click(); await page.waitForTimeout(200); out.afterUndoBtn = await n();
+await page.keyboard.press('Control+KeyZ'); await page.waitForTimeout(200); out.afterCtrlZ = await n();
+await page.keyboard.press('Control+KeyZ'); await page.waitForTimeout(200); out.afterNothing = await n();
+await drag(0.2, 0.3, 0.5, 0.6); out.redrawn = await n();
+await page.keyboard.press('Digit4'); await page.mouse.click(box.x + box.w * 0.35, box.y + box.h * 0.45); await page.waitForTimeout(200); out.afterErase = await n();
+// click the real Undo bar (the bug: it sat under the draw layer)
+const ub = page.locator('#fr-undo button'); const bb = await ub.boundingBox();
+const top = await page.evaluate(([x, y]) => { const e = document.elementFromPoint(x, y); return e ? (e.id || e.className || e.tagName) : null; }, [bb.x + bb.width / 2, bb.y + bb.height / 2]);
+out.elementAtUndoBar = top;
+await ub.click(); await page.waitForTimeout(200); out.afterUndoBar = await n();
+await page.keyboard.press('Digit4'); await page.mouse.click(box.x + box.w * 0.35, box.y + box.h * 0.45); await page.waitForTimeout(200); out.erasedAgain = await n();
+await page.getByRole('button', { name: 'Undo', exact: true }).first().click(); await page.waitForTimeout(200); out.restoredByBarUndo = await n();
+out.errors = errors;
+console.log(JSON.stringify(out));
+await ctx.close();

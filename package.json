@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node --test"
+    "test": "node --test test/share-core.test.mjs"
   },
   "dependencies": {
     "@netlify/blobs": "^11.1.3"

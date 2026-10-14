@@ -46,6 +46,13 @@
   .vo-item .vo-text { overflow-wrap: anywhere; }
   .vo-item .vo-emoji { font-size: 1.5em; line-height: 1; flex: none; }
   .vo-item.emoji-only { padding: 6px 12px; }
+  /* Shapes (arrow / circle / box) drawn by the sender, in pixels over the picture. Click-through. */
+  #shapes { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; overflow: visible; }
+  #shapes .shape { display: none; }
+  #shapes .shape.on { display: inline; }
+  #shapes .sh-back, #shapes .sh-main { fill: none; stroke-linecap: round; stroke-linejoin: round; }
+  #shapes .sh-back { stroke: rgba(0, 0, 0, 0.55); }
+  #shapes .sh-main { stroke: #ffd23f; }
   .vo-item.emoji-only .vo-emoji { font-size: 2.2em; }
   .vo-item[data-k] { border-left: 5px solid var(--line); }
   .vo-item[data-k="watch"] { border-left-color: var(--k-watch); }
@@ -149,7 +156,7 @@
       </div>
     </div>
     <div class="stage">
-      <div class="player-wrap" id="wrap"><div id="player"></div><div class="vo" id="vo" aria-hidden="true"></div></div>
+      <div class="player-wrap" id="wrap"><div id="player"></div><svg id="shapes" aria-hidden="true" preserveAspectRatio="none"></svg><div class="vo" id="vo" aria-hidden="true"></div></div>
       <div class="notes-cell">
         <div class="notes-col">
           <div id="strip" aria-live="polite"></div>
@@ -177,6 +184,8 @@
   var MAX_BYTES = 262144;
   var MAX_NOTES = 300;
   var MAX_TEXT = 300;
+  var MAX_SHAPES = 100;
+  var SHAPE_TYPES = ['arrow', 'circle', 'box'];
   // The default emoji set (same as the extension) and the meaning colour for each
   var EMOJI_KIND = {
     '\u{1F440}': 'watch', '\u{1F3AF}': 'watch', '\u{1F4A1}': 'watch',
@@ -236,10 +245,23 @@
       if (!t && !em) return;
       notes.push({ start: s, end: e, text: t, emoji: em });
     });
-    if (!notes.length) return null;
+    var shapes = [];
+    if (Array.isArray(obj.s)) {
+      obj.s.slice(0, MAX_SHAPES).forEach(function (r) {
+        if (!Array.isArray(r) || r.length < 7) return;
+        var v = r.slice(0, 7).map(Number);
+        if (!v.every(isFinite)) return;
+        if (v[0] < 0 || v[0] > 1000000 || v[1] <= v[0] || v[1] - v[0] > 3600) return;
+        if (v[2] !== 0 && v[2] !== 1 && v[2] !== 2) return;
+        var c = function (x) { return Math.min(100, Math.max(0, x)); };
+        shapes.push({ start: v[0], end: v[1], type: SHAPE_TYPES[v[2]], x1: c(v[3]), y1: c(v[4]), x2: c(v[5]), y2: c(v[6]) });
+      });
+    }
+    if (!notes.length && !shapes.length) return null;
     notes.sort(function (a, b) { return a.start - b.start; });
+    shapes.sort(function (a, b) { return a.start - b.start; });
     var title = typeof obj.t === 'string' ? obj.t.trim().slice(0, 120) : '';
-    return { id: obj.id, title: title, notes: notes };
+    return { id: obj.id, title: title, notes: notes, shapes: shapes };
   }
 
   async function decode(payload) {
@@ -323,6 +345,52 @@
       vo.appendChild(item);
     });
   }
+  // ---------- shapes on the video ----------
+  var SVGNS = 'http://www.w3.org/2000/svg', shapeEls = [];
+  function svgEl(tag, attrs) {
+    var e = document.createElementNS(SVGNS, tag);
+    for (var k in attrs) e.setAttribute(k, attrs[k]);
+    return e;
+  }
+  function shapePart(sh, W, H, px) {
+    var X1 = sh.x1 * W / 100, Y1 = sh.y1 * H / 100, X2 = sh.x2 * W / 100, Y2 = sh.y2 * H / 100;
+    if (sh.type === 'box') return svgEl('rect', { x: Math.min(X1, X2), y: Math.min(Y1, Y2), width: Math.abs(X2 - X1), height: Math.abs(Y2 - Y1), rx: px * 0.8 });
+    if (sh.type === 'circle') return svgEl('ellipse', { cx: (X1 + X2) / 2, cy: (Y1 + Y2) / 2, rx: Math.abs(X2 - X1) / 2, ry: Math.abs(Y2 - Y1) / 2 });
+    var len = Math.sqrt(Math.pow(X2 - X1, 2) + Math.pow(Y2 - Y1, 2)) || 1, ang = Math.atan2(Y2 - Y1, X2 - X1);
+    var hl = Math.min(px * 7, Math.max(px * 3, len * 0.32));
+    var hx = function (a) { return (X2 - hl * Math.cos(ang + a)).toFixed(1); };
+    var hy = function (a) { return (Y2 - hl * Math.sin(ang + a)).toFixed(1); };
+    return svgEl('path', { d: 'M' + X1.toFixed(1) + ' ' + Y1.toFixed(1) + 'L' + X2.toFixed(1) + ' ' + Y2.toFixed(1) +
+      'M' + hx(0.5) + ' ' + hy(0.5) + 'L' + X2.toFixed(1) + ' ' + Y2.toFixed(1) + 'L' + hx(-0.5) + ' ' + hy(-0.5) });
+  }
+  function renderShapes() {
+    var svg = $('shapes');
+    svg.textContent = '';
+    shapeEls = [];
+    if (!data || !data.shapes.length) return;
+    var r = $('wrap').getBoundingClientRect(), W = r.width, H = r.height;
+    if (!W || !H) return;
+    svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+    var px = Math.max(3, W * 0.0048);
+    data.shapes.forEach(function (sh) {
+      var g = svgEl('g', { 'class': 'shape' });
+      var back = shapePart(sh, W, H, px), main = shapePart(sh, W, H, px);
+      back.setAttribute('class', 'sh-back'); back.setAttribute('stroke-width', (px + 3).toFixed(1));
+      main.setAttribute('class', 'sh-main'); main.setAttribute('stroke-width', px.toFixed(1));
+      g.appendChild(back); g.appendChild(main);
+      svg.appendChild(g);
+      shapeEls.push(g);
+    });
+    updateShapes(lastT);
+  }
+  var lastT = 0;
+  function updateShapes(t) {
+    lastT = t;
+    data.shapes.forEach(function (s, i) {
+      var g = shapeEls[i];
+      if (g) g.setAttribute('class', 'shape' + (voOn && t >= s.start - 0.15 && t < s.end ? ' on' : ''));
+    });
+  }
   function fsElement() { return document.fullscreenElement || document.webkitFullscreenElement || null; }
   function canFs() { var w = $('wrap'); return !!(w && (w.requestFullscreen || w.webkitRequestFullscreen)); }
   function toggleFs() {
@@ -346,6 +414,17 @@
     if (!player || !data) return;
     var t = 0;
     try { t = player.getCurrentTime() || 0; } catch (e) { return; }
+    updateShapes(t);
+    if (!data.notes.length) { // a link with drawings only
+      if (lastKey !== 'shapes') {
+        lastKey = 'shapes';
+        var st = $('strip');
+        st.className = '';
+        st.textContent = '';
+        st.appendChild(el('div', 'strip-idle', 'Drawings on the video, no written notes.'));
+      }
+      return;
+    }
 
     var active = [];
     data.notes.forEach(function (n, i) { if (t >= n.start && t < n.end) active.push(i); });
@@ -392,14 +471,14 @@
   }
 
   function prevNote() {
-    if (!player) return;
+    if (!player || !data.notes.length) return;
     var t = player.getCurrentTime() || 0, target = null;
     data.notes.forEach(function (n) { if (n.start < t - 1.5) target = n.start; });
     jumpTo(target == null ? data.notes[0].start : target);
   }
 
   function nextNote() {
-    if (!player) return;
+    if (!player || !data.notes.length) return;
     var t = player.getCurrentTime() || 0;
     for (var i = 0; i < data.notes.length; i++) {
       if (data.notes[i].start > t + 0.25) { jumpTo(data.notes[i].start); return; }
@@ -438,7 +517,10 @@
   function show() {
     $('title').textContent = data.title || 'Shared notes';
     document.title = (data.title ? data.title + ' \u2013 ' : '') + 'Film Room';
-    $('sub').textContent = data.notes.length + (data.notes.length === 1 ? ' note' : ' notes') + ' shared with you';
+    var parts = [];
+    if (data.notes.length) parts.push(data.notes.length + (data.notes.length === 1 ? ' note' : ' notes'));
+    if (data.shapes.length) parts.push(data.shapes.length + (data.shapes.length === 1 ? ' shape' : ' shapes'));
+    $('sub').textContent = parts.join(' and ') + ' shared with you';
     $('viewer').hidden = false;
     buildList();
     $('prev').addEventListener('click', prevNote);
@@ -446,6 +528,9 @@
     if (canFs()) { $('fs').hidden = false; $('fs').addEventListener('click', toggleFs); }
     loadVo();
     setVo(voOn, false);
+    renderShapes();
+    if (typeof ResizeObserver === 'function') new ResizeObserver(renderShapes).observe($('wrap'));
+    else window.addEventListener('resize', renderShapes);
     var vb = document.querySelectorAll('.vo-ctl button');
     for (var q = 0; q < vb.length; q++) vb[q].addEventListener('click', function () { setVo(this.getAttribute('data-vo') === 'on', true); });
     $('extLink').href = 'https://www.youtube.com/watch?v=' + data.id + '#fr=' + hash;

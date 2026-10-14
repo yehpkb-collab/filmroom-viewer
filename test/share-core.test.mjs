@@ -117,3 +117,26 @@ test('bad requests', async () => {
   assert.equal((await handle(new Request('https://x.test/api/share', { method: 'OPTIONS' }), deps)).status, 204);
   assert.equal((await handle(new Request('https://x.test/api/share/AAAAAAAAAA', { method: 'DELETE' }), deps)).status, 405);
 });
+
+test('shapes: accepted when well formed, alone or with notes; bad rows rejected', () => {
+  const row = [5, 9, 0, 20, 30, 50, 60];
+  assert.ok(validPayload(mk({ ...good, s: [row, [6, 10, 1, 55, 20, 80, 50], [7, 11, 2, 10, 70, 40, 90]] })));
+  assert.ok(validPayload(mk({ v: 1, id: 'dQw4w9WgXcQ', n: [], s: [row] })), 'drawings only');
+  assert.equal(validPayload(mk({ ...good, n: [] })), false, 'still no notes and no shapes');
+  assert.equal(validPayload(mk({ ...good, s: [] })), false, 'empty shapes list');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 3, 20, 30, 50, 60]] })), false, 'unknown type');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 150, 60]] })), false, 'coordinate off the picture');
+  assert.equal(validPayload(mk({ ...good, s: [[9, 5, 0, 20, 30, 50, 60]] })), false, 'ends before it starts');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50]] })), false, 'short row');
+  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, '60']] })), false, 'text where a number belongs');
+  assert.equal(validPayload(mk({ ...good, s: Array.from({ length: 101 }, () => row) })), false, 'too many shapes');
+  assert.ok(validPayload(mk({ ...good, s: Array.from({ length: 100 }, () => row) })));
+});
+
+test('a drawings-only link can be created and opened', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '2.2.2.2' };
+  const p = mk({ v: 1, id: 'dQw4w9WgXcQ', n: [], s: [[5, 9, 0, 20, 30, 50, 60]] });
+  const { id } = await (await handle(post(p), deps)).json();
+  assert.equal(await (await handle(get(id), deps)).text(), p);
+  assert.equal((await listStats(deps.stats))[0].notes, 0);
+});

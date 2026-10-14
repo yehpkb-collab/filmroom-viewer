@@ -1,4 +1,4 @@
-/* Film Room v0.8: one look.
+/* Film Room v0.9a: one look.
    Dark glass over the video, one accent (optic yellow-green) for the things you press,
    and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
    Everything on the video sizes in em, so it scales with the picture. */
@@ -1110,3 +1110,86 @@ html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
   outline: 2px solid #3ea6ff;
   outline-offset: 2px;
 }
+
+/* ---------- 0.9: shapes (arrow / circle / box) and the draw bar ---------- */
+#fr-shapes {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+#fr-shapes .fr-shape { display: none; }
+#fr-shapes .fr-shape.fr-on { display: inline; }
+#fr-shapes .fr-sh-back,
+#fr-shapes .fr-sh-main {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+#fr-shapes .fr-sh-back { stroke: rgba(0, 0, 0, 0.55); }
+#fr-shapes .fr-sh-main { stroke: #ffd23f; }
+#fr-shapes .fr-sh-shared .fr-sh-main { stroke: #7fd4ff; }
+#fr-shapes .fr-draft { opacity: 0.85; }
+
+#fr-draw {
+  position: absolute;
+  inset: 0;
+  display: none;
+  z-index: 2;
+  cursor: crosshair;
+  touch-action: none;
+  pointer-events: auto;
+  box-shadow: inset 0 0 0 2px rgba(255, 210, 63, 0.7);
+}
+#fr-overlay.fr-drawing #fr-draw { display: block; }
+#fr-draw.fr-erase { cursor: pointer; }
+
+#fr-drawbar {
+  position: absolute;
+  z-index: 3;
+  top: 3%;
+  left: 50%;
+  transform: translateX(-50%);
+  display: none;
+  gap: 0.35em;
+  padding: 0.35em;
+  border-radius: 1.2em;
+  background: var(--fr-surface);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0.4em 1.4em rgba(0, 0, 0, 0.38), inset 0 0 0 1px var(--fr-hair);
+  pointer-events: auto;
+  font-size: var(--fr-ui, 14px);
+}
+#fr-overlay.fr-drawing #fr-drawbar { display: flex; }
+#fr-drawbar .fr-tool {
+  font: inherit;
+  font-weight: 600;
+  color: var(--fr-text);
+  background: var(--fr-glass);
+  border: 0;
+  border-radius: 0.9em;
+  padding: 0.4em 0.85em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#fr-drawbar .fr-tool:hover { background: rgba(255, 255, 255, 0.18); }
+#fr-drawbar .fr-tool.fr-sel { color: var(--fr-ink); background: #ffd23f; }
+#fr-drawbar .fr-tool-secs { font-variant-numeric: tabular-nums; color: var(--fr-text2); }
+#fr-drawbar .fr-tool-done { color: var(--fr-ink); background: var(--fr-accent); }
+#fr-drawbar button:focus-visible { outline: 2px solid #3ea6ff; outline-offset: 2px; }
+
+#fr-panel .fr-panel-shapes {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 8px;
+}
+#fr-panel .fr-panel-shapes .fr-panel-sbtn { flex: 1 1 0; min-width: 0; white-space: nowrap; font-size: 12.5px; }
+#fr-panel .fr-panel-draw.fr-sel { color: #141800; background: #ffd23f; }
+
+/* the Undo bar and toast stay clickable above the draw layer */
+#fr-overlay #fr-undo,
+#fr-overlay #fr-toast { z-index: 5; }
+#fr-drawbar .fr-tool:disabled { opacity: 0.4; cursor: default; }

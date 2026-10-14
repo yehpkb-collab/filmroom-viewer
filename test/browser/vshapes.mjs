@@ -1,0 +1,23 @@
+import { createRequire } from 'node:module';
+const require = createRequire(process.env.PW_MODULES || '/opt/npm-tools/node_modules/');
+const { chromium } = require('playwright');
+import fs from 'node:fs';
+import { deflateRawSync } from 'node:zlib';
+const b = await chromium.launch({ executablePath: process.env.CHROME || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', args: ['--headless=new', '--no-sandbox'] });
+const ctx = await b.newContext();
+await ctx.route('https://filmroom-viewer.netlify.app/**', (r) => r.fulfill({ status: 200, contentType: 'text/html', body: fs.readFileSync('' + new URL('../..', import.meta.url).pathname.replace(/\/$/, '') + '/public/index.html', 'utf8') }));
+await ctx.route('https://www.youtube.com/iframe_api', (r) => r.fulfill({ status: 200, contentType: 'text/javascript', body: `window.YT={Player:function(id,o){var t0=performance.now();this.getCurrentTime=function(){return (performance.now()-t0)/1000};this.seekTo=function(){};this.playVideo=function(){};this.pauseVideo=function(){};setTimeout(function(){o.events.onReady({})},50)}};setTimeout(function(){window.onYouTubeIframeAPIReady&&window.onYouTubeIframeAPIReady()},10);` }));
+const mk = (o) => 'z' + deflateRawSync(Buffer.from(JSON.stringify(o))).toString('base64url');
+const errs = []; const out = {};
+const run = async (name, obj, hashOverride) => {
+  const p = await ctx.newPage(); p.on('pageerror', (e) => errs.push(name + ': ' + e)); p.on('console', (m) => { if (m.type() === 'error') errs.push(name + ': ' + m.text()); });
+  await p.goto('https://filmroom-viewer.netlify.app/#' + (hashOverride || mk(obj))); await p.waitForTimeout(900);
+  out[name] = { viewer: await p.locator('#viewer').isVisible(), err: await p.locator('#error').isVisible(), sub: await p.locator('#sub').textContent(), shapes: await p.locator('#shapes .shape').count(), on: await p.locator('#shapes .shape.on').count(), strip: (await p.locator('#strip').textContent()).slice(0, 50) };
+  await p.close();
+};
+await run('shapesOnly', { v: 1, id: 'dQw4w9WgXcQ', n: [], s: [[0, 60, 2, 10, 10, 60, 60]] });
+await run('evil', { v: 1, id: 'dQw4w9WgXcQ', n: [], s: [[0, 60, 9, 10, 10, 60, 60], ['x', 1, 0, 1, 1, 1, 1], [0, 5, 0, -500, 1e9, 3, 3]] });
+await run('empty', { v: 1, id: 'dQw4w9WgXcQ', n: [] });
+await run('notesOnlyOld', { v: 1, id: 'dQw4w9WgXcQ', n: [[1, 5, 'hi']] });
+console.log(JSON.stringify(out, null, 1), errs);
+await b.close();
