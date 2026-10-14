@@ -44,3 +44,11 @@ Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the dow
 
 ## Versions
 The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.8b (hosted extension zip is v0.9e). Deploy the site before (or together with) giving anyone extension 0.9: the short-link service only accepts drawings from site v0.7 on, and an older service answers 400, so sharing falls back to the long link. The extension zip is versioned separately (`film-room-overlay-vX.zip`).
+
+## Chrome Web Store
+- Publisher: Film Room (yehpkb@gmail.com), non-trader. Item "Film Room", unlisted, free, auto-publish after review.
+- Dashboard (status page): https://chrome.google.com/webstore/devconsole/14e3f6a6-dfb9-447f-b6fd-65a51dc568c5/nkapmagojgkbpioagmcmhfpjhcmianoj/edit/status
+- Extension ID: nkapmagojgkbpioagmcmhfpjhcmianoj. Submitted 2026-10-14 (v0.9e, manifest 0.9.5).
+- Listing copy and privacy policy text: `store/`. Policy is published as a Google Doc (link entered in the Privacy tab).
+- Store zip: same code as the sideload zip, with manifest "name" set to "Film Room". Each upload needs a higher manifest `version`, and a new upload restarts review.
+- The store copy has a different extension ID from the sideloaded copy, so notes do not carry over (use Backup / Restore).
