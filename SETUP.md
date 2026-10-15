@@ -48,7 +48,7 @@ The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial chang
 ## Chrome Web Store
 - Publisher: Film Room (yehpkb@gmail.com), non-trader. Item "Film Room", unlisted, free, auto-publish after review.
 - Dashboard (status page): https://chrome.google.com/webstore/devconsole/14e3f6a6-dfb9-447f-b6fd-65a51dc568c5/nkapmagojgkbpioagmcmhfpjhcmianoj/edit/status
-- Extension ID: nkapmagojgkbpioagmcmhfpjhcmianoj. Submitted 2026-10-14 (v0.9e, manifest 0.9.5).
+- Extension ID: nkapmagojgkbpioagmcmhfpjhcmianoj. Submitted 2026-10-14, approved and published (unlisted) 2026-10-15 (v0.9e, manifest 0.9.5). Install link: https://chromewebstore.google.com/detail/film-room/nkapmagojgkbpioagmcmhfpjhcmianoj
 - Listing copy and privacy policy text: `store/`. Policy is published as a Google Doc (link entered in the Privacy tab).
 - Store zip: same code as the sideload zip, with manifest "name" set to "Film Room". Each upload needs a higher manifest `version`, and a new upload restarts review.
 - The store copy has a different extension ID from the sideloaded copy, so notes do not carry over (use Backup / Restore).
