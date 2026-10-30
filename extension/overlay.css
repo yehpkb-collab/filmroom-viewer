@@ -1,4 +1,4 @@
-/* Film Room v0.9d: one look.
+/* Film Room v0.10: one look.
    Dark glass over the video, one accent (optic yellow-green) for the things you press,
    and the four meaning colours (watch / good / bad / ask) used ONLY on emoji tiles.
    Everything on the video sizes in em, so it scales with the picture. */
@@ -478,6 +478,8 @@
   --p-line: rgba(0, 0, 0, 0.12);
   --p-chip: rgba(0, 0, 0, 0.07);
   --p-chip-hover: rgba(0, 0, 0, 0.14);
+  --p-warn-bg: rgba(224, 149, 26, 0.16);
+  --p-warn-line: rgba(224, 149, 26, 0.55);
   box-sizing: border-box;
   margin: 0 0 12px;
   padding: 12px 12px 10px;
@@ -497,6 +499,8 @@ html[dark] #fr-panel {
   --p-line: rgba(255, 255, 255, 0.14);
   --p-chip: rgba(255, 255, 255, 0.1);
   --p-chip-hover: rgba(255, 255, 255, 0.2);
+  --p-warn-bg: rgba(242, 169, 59, 0.16);
+  --p-warn-line: rgba(242, 169, 59, 0.5);
   --p-bar: #d8f34a;
   --p-on: rgba(216, 243, 74, 0.12);
 }
@@ -1299,3 +1303,76 @@ html[dark] #fr-panel .fr-k-ask   { --k: #5aa9f0; }
 /* Shapes point at things, so they sit above the notes (never hidden behind a note box); the note editor stays above them */
 #fr-overlay #fr-shapes { z-index: 1; }
 #fr-overlay #fr-capture { z-index: 2; }
+
+/* ---------- 0.9e: backup folded away, plainer names ---------- */
+#fr-panel .fr-panel-backuptoggle {
+  display: block;
+  height: auto;
+  margin: 8px 0 0;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--p-text2);
+  background: none;
+}
+#fr-panel .fr-panel-backup { margin-bottom: 4px; }
+#fr-panel .fr-panel-backuphint { font-size: 12px; line-height: 1.4; color: var(--p-text2); margin: 2px 2px 6px; }
+
+/* ---------- "Your shared link is not the latest version" (v0.9g) ---------- */
+#fr-panel .fr-pstale {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--p-warn-bg);
+  box-shadow: inset 0 0 0 1px var(--p-warn-line);
+  color: var(--p-text);
+  font-size: 12.5px;
+  font-weight: 500;
+  line-height: 1.35;
+}
+#fr-panel .fr-pstale.fr-on {
+  display: block;
+}
+/* While the link is out of date, the one share button gets the accent colour */
+#fr-panel .fr-panel-share.fr-stale {
+  color: #141800;
+  background: #d8f34a;
+  font-weight: 700;
+}
+#fr-panel .fr-panel-share.fr-stale:hover:not(:disabled) {
+  background: #e6ff63;
+}
+
+/* ---------- Live share link status line (v0.10) ---------- */
+#fr-panel .fr-plink {
+  display: none;
+  margin: 6px 2px 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--p-text2);
+}
+#fr-panel .fr-plink.fr-on {
+  display: block;
+}
+#fr-panel .fr-plink::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  vertical-align: 1px;
+  background: #2e9e62;
+}
+html[dark] #fr-panel .fr-plink::before {
+  background: #3fb97a;
+}
+#fr-panel .fr-plink[data-state="pending"]::before,
+#fr-panel .fr-plink[data-state="sending"]::before,
+#fr-panel .fr-plink[data-state="offline"]::before,
+#fr-panel .fr-plink[data-state="gone"]::before,
+#fr-panel .fr-plink[data-state="toobig"]::before,
+#fr-panel .fr-plink[data-state="empty"]::before {
+  background: #e0951a;
+}

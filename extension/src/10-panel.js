@@ -113,8 +113,8 @@ function buildPanel() {
   panelCountEl.className = 'fr-panel-count';
   head.appendChild(title);
   head.appendChild(panelCountEl);
-  panelRmBtn = panelButton('Remove shared', 'fr-panel-hide fr-panel-rm', () => clearShared());
-  panelRmBtn.title = 'Remove the notes shared with you (your own notes are not affected). You can undo it for a few seconds.';
+  panelRmBtn = panelButton('Clear shared notes', 'fr-panel-hide fr-panel-rm', () => clearShared());
+  panelRmBtn.title = 'Clear the notes and shapes other people shared with you from this video (your own are not affected). You can undo it for a few seconds.';
   panelRmBtn.style.display = 'none';
   head.appendChild(panelRmBtn);
   head.appendChild(panelButton('Hide', 'fr-panel-hide', () => setPanel(false)));
@@ -177,14 +177,46 @@ function buildPanel() {
   panelBmRowEl = document.createElement('div');
   panelBmRowEl.className = 'fr-pbm-row';
   panelEl.appendChild(panelBmRowEl);
-  const copyBtn = panelButton('Copy link', 'fr-panel-copy', () => shareLink());
-  copyBtn.title = 'Copy a share link to your notes (Alt+S)';
+  staleEl = document.createElement('div');
+  staleEl.className = 'fr-pstale';
+  staleEl.setAttribute('role', 'status');
+  staleTextEl = document.createElement('span');
+  staleTextEl.className = 'fr-pstale-text';
+  staleEl.appendChild(staleTextEl);
+  panelEl.appendChild(staleEl);
+  const copyBtn = panelButton('Copy share link', 'fr-panel-copy fr-panel-share', () => shareLink());
+  panelShareBtn = copyBtn;
+  updateStale(false);
+  copyBtn.title = 'Copy a link to your notes and shapes for this video, to send to someone. The link keeps itself up to date as you add more (Alt+S)';
   panelEl.appendChild(copyBtn);
-  // Backup: all your notes to a file and back (for a second computer, a reinstall, or a safety copy).
+  linkEl = document.createElement('div');
+  linkEl.className = 'fr-plink';
+  linkEl.setAttribute('role', 'status');
+  linkTextEl = document.createElement('span');
+  linkEl.appendChild(linkTextEl);
+  panelEl.appendChild(linkEl);
+  updateLinkUI();
+  // Backup (for you only, folded away): all your notes to a file and back, for a second computer, a reinstall, or a safety copy.
+  const backupToggle = panelButton('Backup \u25BE', 'fr-panel-backuptoggle', () => {
+    const open = fileWrap.style.display === 'none';
+    fileWrap.style.display = open ? '' : 'none';
+    backupToggle.textContent = open ? 'Backup \u25B4' : 'Backup \u25BE';
+    backupToggle.setAttribute('aria-expanded', String(open));
+  });
+  backupToggle.setAttribute('aria-expanded', 'false');
+  backupToggle.title = 'Save your notes to a file, or move them to another computer';
+  panelEl.appendChild(backupToggle);
+  const fileWrap = document.createElement('div');
+  fileWrap.className = 'fr-panel-backup';
+  fileWrap.style.display = 'none';
+  const fileHint = document.createElement('div');
+  fileHint.className = 'fr-panel-backuphint';
+  fileHint.textContent = 'For you only: save your notes to a file, or move them to another computer. To share with someone, use Copy share link.';
+  fileWrap.appendChild(fileHint);
   const fileRow = document.createElement('div');
   fileRow.className = 'fr-panel-files';
-  const exportBtn = panelButton('Export notes', 'fr-panel-copy', () => exportAll());
-  exportBtn.title = 'Save all your notes (every video) to a file';
+  const exportBtn = panelButton('Back up my notes', 'fr-panel-copy', () => exportAll());
+  exportBtn.title = 'Save all your notes and shapes (every video) to a file';
   const importInput = document.createElement('input');
   importInput.type = 'file';
   importInput.accept = '.json,application/json';
@@ -194,12 +226,13 @@ function buildPanel() {
     importInput.value = '';
     importFile(f);
   });
-  const importBtn = panelButton('Import notes', 'fr-panel-copy', () => importInput.click());
-  importBtn.title = 'Add notes from a file made by Export (nothing is overwritten)';
+  const importBtn = panelButton('Restore from backup', 'fr-panel-copy', () => importInput.click());
+  importBtn.title = 'Add notes from a backup file (nothing is overwritten)';
   fileRow.appendChild(exportBtn);
   fileRow.appendChild(importBtn);
   fileRow.appendChild(importInput);
-  panelEl.appendChild(fileRow);
+  fileWrap.appendChild(fileRow);
+  panelEl.appendChild(fileWrap);
   renderPanelBm();
 
   const foot = document.createElement('div');
@@ -412,6 +445,57 @@ function syncPanel() {
     host.insertBefore(panelEl, host.firstChild);
     applyPanelFollow(); // a mark added while the panel was out of the page
   }
+}
+
+// The line above Copy share link: shows when your notes or shapes no longer match the link you last made.
+function updateStale(allowToast) {
+  const c = lastShare && currentVideoId ? countShareChanges(lastShare, notes, shapes) : 0;
+  const rose = c > staleCount;
+  staleCount = c;
+  if (staleEl) {
+    staleEl.classList.toggle('fr-on', c > 0);
+    if (c > 0) staleTextEl.textContent = 'Your shared link is not the latest version (' + c + (c === 1 ? ' change' : ' changes') + ').';
+  }
+  syncShareBtn();
+  // The first time it goes out of date, say so once. Wait a beat so a bookmark's own message (with its 1-8 hint) is not replaced.
+  if (allowToast && rose && lastShare && !lastShare.w) {
+    setTimeout(() => {
+      if (!lastShare || lastShare.w || staleCount < 1 || Date.now() < bookmarkUntil) return;
+      lastShare.w = true;
+      persistLastShare();
+      toast('Your last shared link is not the latest version.', 4500);
+    }, 60);
+  }
+}
+
+// The one share button becomes "Copy new share link" (in the accent colour) while an old, non-live link is out of date, or the live link has expired.
+function syncShareBtn() {
+  if (!panelShareBtn) return;
+  const fresh = staleCount > 0 || linkState === 'gone';
+  panelShareBtn.classList.toggle('fr-stale', fresh);
+  panelShareBtn.textContent = fresh ? 'Copy new share link' : 'Copy share link';
+}
+
+// The small status line under Copy share link: only shown once you have a live link (or yours has expired).
+const LINK_MESSAGES = {
+  ok: 'Live link: it always shows your latest notes.',
+  pending: 'Updating your link\u2026',
+  sending: 'Updating your link\u2026',
+  offline: 'Can\u2019t reach the site. Your link will update when it can.',
+  gone: 'This link has expired. Copy a new share link.',
+  toobig: 'Too many notes or shapes for one link. Remove some and it updates.',
+  empty: 'Add a note and your link will update.',
+};
+
+function updateLinkUI() {
+  if (linkEl) {
+    const msg = LINK_MESSAGES[linkState];
+    const show = !!msg && (!!linkRec || linkState === 'gone');
+    linkEl.classList.toggle('fr-on', show);
+    linkEl.setAttribute('data-state', linkState);
+    if (show) linkTextEl.textContent = msg;
+  }
+  syncShareBtn();
 }
 
 function highlightPanel(activeKey) {

@@ -36,6 +36,7 @@ if (isViewerPage()) {
   loadSettings();
   watchSettings();
   document.addEventListener('keydown', onKeyDown, true);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushLink(); }); // leaving the tab: send pending changes now
   ['pause', 'play', 'seeking', 'seeked'].forEach((t) => document.addEventListener(t, onVideoEvent, true)); // media events don't bubble, so listen on the way down
   tick();
 }

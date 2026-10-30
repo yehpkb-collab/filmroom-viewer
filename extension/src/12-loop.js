@@ -45,6 +45,14 @@ function switchVideo(videoId) {
   sharedNotes = [];
   shapes = [];
   sharedShapes = [];
+  lastShare = null;
+  linkRec = null;
+  linkState = 'none';
+  clearTimeout(linkTimer);
+  linkRetry = 0;
+  staleCount = 0;
+  updateStale(false);
+  updateLinkUI();
   rebuildView();
   renderNotes();
   renderShapes();

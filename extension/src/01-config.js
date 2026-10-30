@@ -38,6 +38,7 @@ const SIZE_NAMES = { '-1': 'small', '0': 'medium', '1': 'large' };
 const DRAG_SLOP = 4;          // px you must move before a note leaves the stack (so a plain click never moves it)
 const STORAGE_PREFIX = 'fr_notes:';
 const SHARED_PREFIX = 'fr_shared:';
+const LASTSHARE_PREFIX = 'fr_lastshare:';       // what your latest share link for a video contained (to tell you when it is out of date)
 const SHAPES_PREFIX = 'fr_shapes:';             // your arrows / circles / boxes for a video
 const SHARED_SHAPES_PREFIX = 'fr_sshapes:';     // the ones that came with a share link
 const AUTHOR_KEY = 'fr_author';              // an anonymous id for this install; tags the links you make
@@ -70,6 +71,14 @@ const LONG_LINK_WARN = 3500;  // characters
 const SHARE_API = SHARE_BASE + 'api/share';     // short-link service (same site as the viewer page)
 const SHORT_RE = /^s[A-Za-z0-9_-]{10}$/;        // a short link is  SHARE_BASE + '#s' + 10 characters
 const SHORT_TIMEOUT_MS = 6000;                  // give up on the service after this and use a long link
+
+// Live share links (v0.10): the link you copy keeps showing your latest notes. The extension keeps a secret key for it
+// (only this install can change what the link shows) and sends the new notes a few seconds after you stop editing.
+const LINK_PREFIX = 'fr_link:';                 // per video: { id, key, sig, title, t } (see cleanLink)
+const LINK_DEBOUNCE_MS = 4000;                  // wait this long after your last change before updating the link
+const LINK_RETRY_MS = [15000, 60000, 300000];   // when the site can't be reached: try again after 15 s, 1 min, then every 5 min
+const LINK_ID_RE = /^[A-Za-z0-9_-]{10}$/;
+const LINK_KEY_RE = /^[A-Za-z0-9_-]{16,64}$/;
 
 // Share-link limits (links are untrusted input)
 const YT_ID_RE = /^[A-Za-z0-9_-]{11}$/;

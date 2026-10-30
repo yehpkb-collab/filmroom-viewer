@@ -264,36 +264,170 @@ function closeShareBox() {
   if (shareBoxEl) shareBoxEl.style.display = 'none';
 }
 
+const shareCountText = () => notes.length + (notes.length === 1 ? ' note' : ' notes') + (shapes.length ? ', ' + shapes.length + (shapes.length === 1 ? ' shape' : ' shapes') : '');
+
+async function copyShareUrl(url, okMessage) {
+  const ok = await copyText(url);
+  if (ok) {
+    toast(okMessage);
+  } else {
+    shareInput.value = url;
+    shareBoxEl.style.display = 'flex';
+    shareInput.focus();
+    shareInput.select();
+  }
+}
+
+// Copy share link. The first time for a video it makes a LIVE link; after that it copies that same link every time,
+// because the link keeps itself up to date (see the live link section below).
 async function shareLink() {
   if (!currentVideoId) return;
   if (!notes.length && !shapes.length) {
     toast('No notes to share yet. Press Alt+N to add one.');
     return;
   }
-  const title = (document.title || '').replace(/^\(\d+\)\s*/, '').replace(/\s*-\s*YouTube\s*$/, '');
-  let url;
-  let isShort = false;
-  try {
-    const payload = await encodeShare(currentVideoId, title, notes, await getAuthorId(), shapes);
-    toast('Making share link\u2026');
-    const id = await createShortId(payload);
-    isShort = !!id;
-    url = SHARE_BASE + '#' + (id ? 's' + id : payload); // service unreachable: the long link still works
-  } catch (err) {
-    warn(err);
-    toast('Couldn\u2019t build the share link.');
+  const vid = currentVideoId;
+  if (linkRec) { // already live: the same link as before; send anything still waiting
+    const url = SHARE_BASE + '#s' + linkRec.id;
+    flushLink();
+    await copyShareUrl(url, 'Share link copied (' + shareCountText() + '). It updates itself as you add more.');
     return;
   }
-  const ok = await copyText(url);
-  if (ok) {
-    toast(!isShort && url.length > LONG_LINK_WARN
-      ? 'Link copied, but it\u2019s long (' + url.length + ' characters). Some apps may cut it off.'
-      : 'Share link copied (' + notes.length + (notes.length === 1 ? ' note' : ' notes') + (shapes.length ? ', ' + shapes.length + (shapes.length === 1 ? ' shape' : ' shapes') : '') + ')');
+  const title = (document.title || '').replace(/^\(\d+\)\s*/, '').replace(/\s*-\s*YouTube\s*$/, '');
+  let url;
+  let live = null;
+  let longLink = false;
+  let rec = null;
+  try {
+    const author = await getAuthorId();
+    const snap = makeShareSnap(notes, shapes); // what this link contains, frozen now
+    const sig = linkSig(notes, shapes);
+    const payload = await encodeShare(vid, title, notes, author, shapes);
+    toast('Making share link…');
+    const made = await createLiveLink(payload);
+    if (made && made.key) { // a live link
+      live = made;
+      url = SHARE_BASE + '#s' + made.id;
+      rec = { id: made.id, key: made.key, sig: sig, title: title.slice(0, 120), t: Date.now() };
+      saveLink(vid, rec);
+      try { chrome.storage.local.remove(LASTSHARE_PREFIX + vid); } catch (err) { warn(err); } // the old "not the latest" note no longer applies
+    } else if (made) { // an older service without live links: an ordinary short link, so we warn when it goes out of date
+      url = SHARE_BASE + '#s' + made.id;
+      saveShareSnap(vid, snap);
+    } else { // service unreachable: the long link still works
+      url = SHARE_BASE + '#' + payload;
+      longLink = true;
+      saveShareSnap(vid, snap);
+    }
+  } catch (err) {
+    warn(err);
+    toast('Couldn’t build the share link.');
+    return;
+  }
+  if (live && currentVideoId === vid) {
+    linkRec = rec;
+    linkRetry = 0;
+    lastShare = null;
+    staleCount = 0;
+    updateStale(false);
+    setLinkState('ok');
+    linkChanged(false); // you changed something while the link was being made
+  } else if (!live && currentVideoId === vid) {
+    setLinkState('none');
+  }
+  const msg = live
+    ? 'Share link copied (' + shareCountText() + '). It updates itself as you add more.'
+    : longLink && url.length > LONG_LINK_WARN
+      ? 'Link copied, but it’s long (' + url.length + ' characters). Some apps may cut it off.'
+      : 'Share link copied (' + shareCountText() + ')';
+  await copyShareUrl(url, msg);
+}
+
+// ---- live share link ----
+// After the first Copy share link, the link follows your notes. A few seconds after you stop editing, the new notes
+// go to the same link (only this install holds the secret key that allows it). If the site can't be reached, it keeps
+// trying; if the link has expired (nobody opened or updated it for 90 days) the panel says so.
+function setLinkState(s) {
+  linkState = s;
+  updateLinkUI();
+}
+
+// Something you can see in a link may have changed (or the video just loaded): compare with what the link holds.
+function linkChanged(onLoad) {
+  if (!linkRec || !currentVideoId) return;
+  clearTimeout(linkTimer);
+  if (linkSig(notes, shapes) === linkRec.sig) {
+    if (!linkBusy) setLinkState('ok'); // e.g. you undid a change
+    return;
+  }
+  if (!notes.length && !shapes.length) {
+    setLinkState('empty'); // a link needs at least one note or shape; it keeps its last version
+    return;
+  }
+  if (linkState !== 'sending') setLinkState('pending');
+  linkRetry = 0;
+  linkTimer = setTimeout(runLinkSync, onLoad ? 1500 : LINK_DEBOUNCE_MS);
+}
+
+// Leaving the tab or copying the link: don't wait for the pause, send now.
+function flushLink() {
+  if (!linkRec || linkBusy) return;
+  if (linkState === 'pending' || linkState === 'offline') {
+    clearTimeout(linkTimer);
+    runLinkSync();
+  }
+}
+
+async function runLinkSync() {
+  const rec = linkRec;
+  const vid = currentVideoId;
+  if (!rec || !vid) return;
+  if (linkBusy) {
+    linkTimer = setTimeout(runLinkSync, 1000);
+    return;
+  }
+  if (linkSig(notes, shapes) === rec.sig) { setLinkState('ok'); return; }
+  if (!notes.length && !shapes.length) { setLinkState('empty'); return; }
+  linkBusy = true;
+  setLinkState('sending');
+  let r = null;
+  let tooBig = false;
+  let sig = rec.sig;
+  try {
+    const author = await getAuthorId();
+    sig = linkSig(notes, shapes); // frozen together with the payload below
+    const payload = await encodeShare(vid, rec.title, notes, author, shapes);
+    if (payload.length > MAX_HASH_CHARS) tooBig = true;
+    else r = await apiCall({ id: rec.id, key: rec.key, payload: payload });
+  } catch (err) {
+    warn(err);
+  }
+  linkBusy = false;
+  if (r && r.ok) {
+    rec.sig = sig;
+    rec.t = Date.now();
+    saveLink(vid, rec);
+    linkRetry = 0;
+    if (linkRec === rec) {
+      if (linkSig(notes, shapes) !== sig) linkChanged(false); // changed again while sending
+      else setLinkState('ok');
+    }
+    return;
+  }
+  if (linkRec !== rec) return; // you moved to another video meanwhile
+  const status = r ? r.status : 0;
+  if (tooBig || status === 400) {
+    setLinkState('toobig'); // not retried: a change that makes it smaller tries again by itself
+  } else if (status === 404 || status === 403) {
+    linkRec = null; // expired or no longer ours: the next Copy share link makes a new one
+    try { chrome.storage.local.remove(LINK_PREFIX + vid); } catch (err) { warn(err); }
+    setLinkState('gone');
   } else {
-    shareInput.value = url;
-    shareBoxEl.style.display = 'flex';
-    shareInput.focus();
-    shareInput.select();
+    setLinkState('offline');
+    const wait = LINK_RETRY_MS[Math.min(linkRetry, LINK_RETRY_MS.length - 1)];
+    linkRetry++;
+    clearTimeout(linkTimer);
+    linkTimer = setTimeout(runLinkSync, wait);
   }
 }
 

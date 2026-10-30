@@ -43,4 +43,8 @@ Run `npm test` before pushing a change to `netlify/`.
 Give them one link: `https://filmroom-viewer.netlify.app/start/`. It has the download, three install steps, the first-note keys and three feedback questions, with a link to the full guide.
 
 ## Versions
-The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.8a (hosted extension zip is v0.9d). Deploy the site before (or together with) giving anyone extension 0.9: the short-link service only accepts drawings from site v0.7 on, and an older service answers 400, so sharing falls back to the long link. The extension zip is versioned separately (`film-room-overlay-vX.zip`).
+The site zip is named `filmroom-site-vX.Y.zip` (0.1 bump for a substantial change, a lowercase letter for a small one). Current: v0.8 (hosted extension zip is v0.10).
+
+**v0.8 adds live share links.** `POST /api/share?live=1` makes a link with a random id and a secret key (only a hash of the key is stored); `PUT /api/share/<id>` with `Authorization: Bearer <key>` replaces what the link shows. Ordinary links (a hash of the notes) can never be updated. Updates have their own limit (400 per hour per visitor, see `RATE_LIMIT_UPDATES_PER_HOUR`); each update that changes anything is about one read and one write on the `shares` store, plus the rate counter. Extension 0.10 sends an update a few seconds after you stop editing.
+
+Deploy the site before (or together with) giving anyone extension 0.10. If an older service is still running, extension 0.10 still works: the service ignores `?live=1`, answers with an ordinary link, and the extension falls back to the "not the latest version" warning. The short-link service only accepts drawings from site v0.7 on, and an older service answers 400, so sharing falls back to the long link. The extension zip is versioned separately (`film-room-overlay-vX.zip`).

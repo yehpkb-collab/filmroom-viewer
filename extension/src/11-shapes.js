@@ -42,6 +42,8 @@ const sameShape = (a, b) =>
 
 function persistShapes() {
   if (currentVideoId) save(SHAPES_PREFIX + currentVideoId, shapes);
+  updateStale(true);
+  linkChanged(false);
 }
 
 function persistSharedShapes() {

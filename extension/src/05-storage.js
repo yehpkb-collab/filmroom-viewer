@@ -15,6 +15,83 @@ function save(key, value) {
 
 function persist() {
   if (currentVideoId) save(keyFor(currentVideoId), notes);
+  updateStale(true);
+  linkChanged(false);
+}
+
+// ---- Is the link you shared still the latest version? ----
+// When you copy a share link, we keep a short fingerprint of each note and shape that went into it (only the parts
+// a link carries: time, text, emoji, shape corners, label; where a note sits on the picture is not in a link).
+// Comparing that with your notes now tells us how many changes the link does not include.
+function hash32(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) h = ((h << 5) + h + str.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+const noteSig = (n) => hash32([round1(n.start), round1(n.end), n.text || '', n.emoji || ''].join('|'));
+const shapeSig = (s) => hash32([round1(s.start), round1(s.end), s.type, round1(s.x1), round1(s.y1), round1(s.x2), round1(s.y2), s.label || ''].join('|'));
+
+function makeShareSnap(noteList, shapeList) {
+  const n = {};
+  const s = {};
+  noteList.forEach((x, i) => { n[x.id || 'i' + i] = noteSig(x); });
+  shapeList.forEach((x, i) => { s[x.id || 'i' + i] = shapeSig(x); });
+  return { t: Date.now(), n: n, s: s, w: false };
+}
+
+function cleanLastShare(v) {
+  if (!v || typeof v !== 'object' || !isFinite(v.t)) return null;
+  const clean = (m) => {
+    const out = {};
+    if (m && typeof m === 'object') {
+      Object.keys(m).slice(0, 2000).forEach((k) => { if (typeof m[k] === 'string') out[k.slice(0, 40)] = m[k].slice(0, 12); });
+    }
+    return out;
+  };
+  return { t: v.t, n: clean(v.n), s: clean(v.s), w: !!v.w };
+}
+
+// Added + removed + changed, counted against the snapshot.
+function countShareChanges(snap, noteList, shapeList) {
+  let c = 0;
+  const diff = (list, sigFn, old) => {
+    const seen = {};
+    list.forEach((x, i) => {
+      const k = x.id || 'i' + i;
+      seen[k] = true;
+      if (old[k] !== sigFn(x)) c++; // new, or changed
+    });
+    Object.keys(old).forEach((k) => { if (!seen[k]) c++; }); // deleted
+  };
+  diff(noteList, noteSig, snap.n);
+  diff(shapeList, shapeSig, snap.s);
+  return c;
+}
+
+function saveShareSnap(videoId, snap) {
+  save(LASTSHARE_PREFIX + videoId, snap);
+  if (currentVideoId === videoId) {
+    lastShare = snap;
+    staleCount = 0;
+    updateStale(false);
+  }
+}
+
+// ---- Live share link ----
+function cleanLink(v) {
+  if (!v || typeof v !== 'object' || typeof v.id !== 'string' || !LINK_ID_RE.test(v.id) || typeof v.key !== 'string' || !LINK_KEY_RE.test(v.key)) return null;
+  return { id: v.id, key: v.key, sig: typeof v.sig === 'string' ? v.sig.slice(0, 16) : '', title: typeof v.title === 'string' ? v.title.slice(0, 120) : '', t: isFinite(v.t) ? v.t : 0 };
+}
+
+// What the link carries (time, text, emoji, shape corners, label), as one short fingerprint. Where a note sits on the picture is not in a link.
+const linkSig = (noteList, shapeList) => hash32(noteList.map(noteSig).join(',') + '|' + shapeList.map(shapeSig).join(','));
+
+function saveLink(videoId, rec) {
+  save(LINK_PREFIX + videoId, rec);
+}
+
+function persistLastShare() {
+  if (currentVideoId && lastShare) save(LASTSHARE_PREFIX + currentVideoId, lastShare);
 }
 
 // This install's anonymous author id: made once, kept in storage, put in every link you make. When a link
@@ -53,13 +130,21 @@ function cleanList(list) {
 
 function loadNotes(videoId) {
   try {
-    const p = chrome.storage.local.get([keyFor(videoId), sharedKeyFor(videoId), SHAPES_PREFIX + videoId, SHARED_SHAPES_PREFIX + videoId]);
+    const p = chrome.storage.local.get([keyFor(videoId), sharedKeyFor(videoId), SHAPES_PREFIX + videoId, SHARED_SHAPES_PREFIX + videoId, LASTSHARE_PREFIX + videoId, LINK_PREFIX + videoId]);
     p.then((res) => {
       if (currentVideoId !== videoId) return; // user already moved on
       notes = cleanList(res && res[keyFor(videoId)]);
       sharedNotes = cleanList(res && res[sharedKeyFor(videoId)]);
       shapes = cleanShapes(res && res[SHAPES_PREFIX + videoId]);
       sharedShapes = cleanShapes(res && res[SHARED_SHAPES_PREFIX + videoId]);
+      lastShare = cleanLastShare(res && res[LASTSHARE_PREFIX + videoId]);
+      linkRec = cleanLink(res && res[LINK_PREFIX + videoId]);
+      if (linkRec) lastShare = null; // a live link is never "out of date"
+      linkState = linkRec ? 'ok' : 'none';
+      staleCount = 0;
+      updateStale(false);
+      updateLinkUI();
+      linkChanged(true); // changes made while the site was unreachable (or in another tab) go up now
       rebuildView();
       renderNotes();
       renderShapes();

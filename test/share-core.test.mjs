@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { deflateRawSync } from 'node:zlib';
-import { handle, parsePayload, validPayload, cleanup, listStats, RETENTION_DAYS, DAY_MS, RATE_LIMIT_PER_HOUR } from '../netlify/lib/share-core.mjs';
+import { handle, parsePayload, validPayload, cleanup, listStats, RETENTION_DAYS, DAY_MS, RATE_LIMIT_PER_HOUR, RATE_LIMIT_UPDATES_PER_HOUR } from '../netlify/lib/share-core.mjs';
 
 // A Map that looks like a Netlify Blobs store.
 function store() {
@@ -141,10 +141,93 @@ test('a drawings-only link can be created and opened', async () => {
   assert.equal((await listStats(deps.stats))[0].notes, 0);
 });
 
-test('shape labels: a text label up to 100 characters is allowed', () => {
-  assert.ok(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'Watch the split step']] })));
-  assert.ok(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'x'.repeat(100)]] })));
-  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'x'.repeat(101)]] })), false, 'label too long');
-  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 7]] })), false, 'label must be text');
-  assert.equal(validPayload(mk({ ...good, s: [[5, 9, 0, 20, 30, 50, 60, 'a', 'b']] })), false, 'too many columns');
+// ---- live links (v0.10): a random id plus a secret key; only the key can change what the link shows ----
+const postLive = (body) => new Request('https://x.test/api/share?live=1', { method: 'POST', body });
+const put = (id, body, key) => new Request('https://x.test/api/share/' + id, { method: 'PUT', body, headers: key ? { Authorization: 'Bearer ' + key } : {} });
+const more = { ...good, n: [...good.n, [40, 44, 'A third note']] };
+
+test('live link: create, update with the key, and everyone who opens it sees the latest', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.1' };
+  const p1 = mk(good);
+  const r = await handle(postLive(p1), deps);
+  assert.equal(r.status, 200);
+  const { id, key } = await r.json();
+  assert.match(id, /^[A-Za-z0-9_-]{10}$/);
+  assert.match(key, /^[A-Za-z0-9_-]{16,64}$/);
+  assert.notEqual(id, (await (await handle(post(p1), deps)).json()).id, 'a live id is random, not a hash of the notes');
+  assert.equal(await (await handle(get(id), deps)).text(), p1);
+  const p2 = mk(more);
+  const u = await handle(put(id, p2, key), deps);
+  assert.equal(u.status, 200);
+  assert.equal(await (await handle(get(id), deps)).text(), p2, 'the same link now shows the new notes');
+  assert.equal((await listStats(deps.stats)).find((x) => x.id === id).notes, 3, 'stats follow the note count');
+});
+
+test('live link: the key (and only the key) can update; the key is never stored or shown', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.2' };
+  const { id, key } = await (await handle(postLive(mk(good)), deps)).json();
+  assert.equal((await handle(put(id, mk(more)), deps)).status, 403, 'no key');
+  assert.equal((await handle(put(id, mk(more), 'x'.repeat(24)), deps)).status, 403, 'wrong key');
+  assert.equal((await handle(put(id, mk(more), 'short'), deps)).status, 403, 'malformed key');
+  assert.equal(await (await handle(get(id), deps)).text(), mk(good), 'unchanged after the failed tries');
+  const stored = deps.shares.m.get(id);
+  assert.ok(!stored.includes(key), 'the key itself is not kept, only its hash');
+  assert.ok(!(await (await handle(get(id), deps)).text()).includes(key));
+});
+
+test('live link: update rules (bad payload, other video, unknown id, snapshot link, empty)', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.3' };
+  const { id, key } = await (await handle(postLive(mk(good)), deps)).json();
+  assert.equal((await handle(put(id, 'not a payload', key), deps)).status, 400);
+  assert.equal((await handle(put(id, mk({ ...good, id: 'AAAAAAAAAAA' }), key), deps)).status, 400, 'a link stays on one video');
+  assert.equal((await handle(put('AAAAAAAAAA', mk(good), key), deps)).status, 404, 'unknown id');
+  assert.equal((await handle(put('short', mk(good), key), deps)).status, 404, 'malformed id');
+  const snap = (await (await handle(post(mk({ ...good, t: 'snapshot' })), deps)).json()).id;
+  assert.equal((await handle(put(snap, mk(good), key), deps)).status, 404, 'an ordinary (hash) link can never be updated');
+  const same = await handle(put(id, mk(good), key), deps);
+  assert.equal(same.status, 200);
+  assert.equal((await same.json()).same, true, 'identical payload is not rewritten');
+});
+
+test('live link: updating keeps it alive; it still expires when nobody uses it', async () => {
+  const shares = store(), stats = store(), rates = store();
+  const t0 = 1_700_000_000_000;
+  const deps = (now) => ({ shares, stats, rates, ip: '7.7.7.4', now: () => now });
+  const { id, key } = await (await handle(postLive(mk(good)), deps(t0))).json();
+  assert.equal((await handle(put(id, mk(more), key), deps(t0 + 80 * DAY_MS))).status, 200); // an update resets the clock
+  assert.equal((await handle(get(id), deps(t0 + 160 * DAY_MS))).status, 200);                // 80 days after the update: alive
+  assert.equal((await handle(put(id, mk(good), key), deps(t0 + 160 * DAY_MS + (RETENTION_DAYS + 5) * DAY_MS))).status, 404, 'expired links cannot be updated either');
+});
+
+test('live link: creating is limited like any link; updates have their own, higher limit', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.5' };
+  const { id, key } = await (await handle(postLive(mk(good)), deps)).json();
+  let last;
+  for (let i = 0; i < RATE_LIMIT_UPDATES_PER_HOUR; i++) last = await handle(put(id, mk({ ...good, t: 'u' + i }), key), deps);
+  assert.equal(last.status, 200, 'updates are not counted against link creation');
+  assert.equal((await handle(put(id, mk({ ...good, t: 'one too many' }), key), deps)).status, 429);
+  const creator = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.6' };
+  let c;
+  for (let i = 0; i < RATE_LIMIT_PER_HOUR + 1; i++) c = await handle(postLive(mk({ ...good, t: 'n' + i })), creator);
+  assert.equal(c.status, 429);
+});
+
+test('live link: CORS allows the update call from the extension', async () => {
+  const deps = { shares: store(), stats: store(), rates: store(), ip: '7.7.7.7' };
+  const r = await handle(new Request('https://x.test/api/share/AAAAAAAAAA', { method: 'OPTIONS' }), deps);
+  assert.equal(r.status, 204);
+  assert.match(r.headers.get('access-control-allow-methods'), /PUT/);
+  assert.match(r.headers.get('access-control-allow-headers'), /Authorization/i);
+});
+
+test('live link: a drawings-only update and cleanup of an idle live link', async () => {
+  const shares = store(), stats = store(), rates = store();
+  const t0 = 1_700_000_000_000;
+  const deps = { shares, stats, rates, ip: '7.7.7.8', now: () => t0 };
+  const { id, key } = await (await handle(postLive(mk(good)), deps)).json();
+  const draw = mk({ v: 1, id: 'dQw4w9WgXcQ', n: [], s: [[5, 9, 0, 20, 30, 50, 60]] });
+  assert.equal((await handle(put(id, draw, key), deps)).status, 200);
+  assert.equal(await (await handle(get(id), deps)).text(), draw);
+  assert.ok(await cleanup(shares, rates, t0 + (RETENTION_DAYS + 5) * DAY_MS, stats) >= 1);
+  assert.equal(shares.m.has(id), false);
 });

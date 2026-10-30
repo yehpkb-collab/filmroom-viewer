@@ -144,11 +144,20 @@ async function apiCall(msg) {
   try {
     const ctl = typeof AbortController === 'function' ? new AbortController() : null;
     const timer = setTimeout(() => { if (ctl) ctl.abort(); }, SHORT_TIMEOUT_MS);
-    const init = typeof msg.payload === 'string'
-      ? { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: msg.payload }
-      : { cache: 'no-store' };
+    let init;
+    let url = SHARE_API;
+    if (typeof msg.payload === 'string' && msg.id && msg.key) { // update a live link
+      init = { method: 'PUT', headers: { 'Content-Type': 'text/plain', Authorization: 'Bearer ' + msg.key }, body: msg.payload };
+      url += '/' + msg.id;
+    } else if (typeof msg.payload === 'string') { // create (live or plain)
+      init = { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: msg.payload };
+      if (msg.live) url += '?live=1';
+    } else { // open
+      init = { cache: 'no-store' };
+      url += '/' + msg.id;
+    }
     if (ctl) init.signal = ctl.signal;
-    const r = await fetch(typeof msg.payload === 'string' ? SHARE_API : SHARE_API + '/' + msg.id, init);
+    const r = await fetch(url, init);
     const text = await r.text();
     clearTimeout(timer);
     return { ok: r.ok, status: r.status, text: text };
@@ -164,6 +173,20 @@ async function createShortId(payload) {
   try {
     const j = JSON.parse(r.text);
     return j && typeof j.id === 'string' && /^[A-Za-z0-9_-]{10}$/.test(j.id) ? j.id : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+// A live link: the same short-link service, but the id is random and the answer also carries a secret key.
+// Returns { id, key } or, from an older service that doesn't know live links, { id, key: '' } (an ordinary link). null: unreachable.
+async function createLiveLink(payload) {
+  const r = await apiCall({ payload: payload, live: true });
+  if (!r || !r.ok) return null;
+  try {
+    const j = JSON.parse(r.text);
+    if (!j || typeof j.id !== 'string' || !LINK_ID_RE.test(j.id)) return null;
+    return { id: j.id, key: typeof j.key === 'string' && LINK_KEY_RE.test(j.key) ? j.key : '' };
   } catch (err) {
     return null;
   }

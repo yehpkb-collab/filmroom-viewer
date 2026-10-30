@@ -44,7 +44,7 @@ isOn().then(paint);
 
 // ---- Short-link service ----
 // The page script asks this worker to talk to the Film Room site, because YouTube's own page rules and
-// cross-site limits don't apply here. Only the two calls below are allowed, and only to that one site.
+// cross-site limits don't apply here. Only the calls below are allowed (create, open, update a live link), and only to that one site.
 const API = 'https://filmroom-viewer.netlify.app/api/share';
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
@@ -52,9 +52,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   (async () => {
     try {
       let r;
-      if (typeof msg.payload === 'string') { // create: POST the share payload
-        r = await fetch(API, { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: msg.payload });
-      } else if (typeof msg.id === 'string' && /^[A-Za-z0-9_-]{10}$/.test(msg.id)) { // open: GET by id
+      const idOk = typeof msg.id === 'string' && /^[A-Za-z0-9_-]{10}$/.test(msg.id);
+      if (typeof msg.payload === 'string' && idOk && typeof msg.key === 'string' && /^[A-Za-z0-9_-]{16,64}$/.test(msg.key)) {
+        // update a live link: PUT the new payload, with the secret key that only this install holds
+        r = await fetch(API + '/' + msg.id, { method: 'PUT', headers: { 'Content-Type': 'text/plain', Authorization: 'Bearer ' + msg.key }, body: msg.payload });
+      } else if (typeof msg.payload === 'string' && !msg.id) { // create: POST the share payload (live: a link that can be updated)
+        r = await fetch(API + (msg.live ? '?live=1' : ''), { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: msg.payload });
+      } else if (idOk && typeof msg.payload !== 'string') { // open: GET by id
         r = await fetch(API + '/' + msg.id, { cache: 'no-store' });
       } else {
         sendResponse({ ok: false, status: 0, text: '' });
