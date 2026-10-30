@@ -1,6 +1,8 @@
 [build]
   publish = "public"
   functions = "netlify/functions"
+  # Skip the build (and its credits) when a push only touches the extension, tests, tools or docs.
+  ignore = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF -- public netlify netlify.toml package.json"
 
 [build.environment]
   NODE_VERSION = "22"
